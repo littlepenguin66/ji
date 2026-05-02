@@ -19,7 +19,7 @@ use std::path::PathBuf;
         "\nhttps://github.com/littlepenguin66/ji",
     ),
 )]
-struct Cli {
+pub struct Cli {
     #[command(subcommand)]
     command: Command,
 }
