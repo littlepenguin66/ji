@@ -1,0 +1,102 @@
+use std::path::PathBuf;
+use std::sync::Mutex;
+
+/// Global lock for tests that modify JI_TEST_HOME env var.
+#[allow(dead_code)]
+pub static TEST_MUTEX: Mutex<()> = Mutex::new(());
+
+fn base_config_dir() -> PathBuf {
+    if let Ok(test_home) = std::env::var("JI_TEST_HOME") {
+        PathBuf::from(test_home).join(".config")
+    } else {
+        dirs::config_dir().expect("could not determine XDG config directory")
+    }
+}
+
+fn base_data_dir() -> PathBuf {
+    if let Ok(test_home) = std::env::var("JI_TEST_HOME") {
+        PathBuf::from(test_home).join(".local").join("share")
+    } else {
+        dirs::data_local_dir().expect("could not determine XDG data directory")
+    }
+}
+
+pub fn config_dir() -> PathBuf {
+    base_config_dir().join("ji")
+}
+
+pub fn data_dir() -> PathBuf {
+    base_data_dir().join("ji")
+}
+
+pub fn config_toml() -> PathBuf {
+    config_dir().join("config.toml")
+}
+
+pub fn manifest_toml() -> PathBuf {
+    config_dir().join("manifest.toml")
+}
+
+pub fn jiignore() -> PathBuf {
+    config_dir().join(".jiignore")
+}
+
+pub fn identity_path() -> PathBuf {
+    data_dir().join("ji.identity.age")
+}
+
+pub fn identity_pub_path() -> PathBuf {
+    data_dir().join("ji.identity.age.pub")
+}
+
+pub fn cache_dir() -> PathBuf {
+    data_dir().join("cache")
+}
+
+pub fn default_output(hostname: &str) -> PathBuf {
+    data_dir().join(format!("{}.ji", hostname))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_home_overrides_paths() {
+        let _guard = TEST_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
+        let tmp = tempfile::tempdir().unwrap();
+        unsafe { std::env::set_var("JI_TEST_HOME", tmp.path().as_os_str()) };
+
+        let cfg = config_dir();
+        assert!(cfg.starts_with(tmp.path()));
+
+        let data = data_dir();
+        assert!(data.starts_with(tmp.path()));
+
+        unsafe { std::env::remove_var("JI_TEST_HOME") };
+    }
+
+    #[test]
+    fn default_output_naming() {
+        let _guard = TEST_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
+        let tmp = tempfile::tempdir().unwrap();
+        unsafe { std::env::set_var("JI_TEST_HOME", tmp.path().as_os_str()) };
+
+        let out = default_output("mbp");
+        assert_eq!(out.file_name().unwrap(), "mbp.ji");
+
+        unsafe { std::env::remove_var("JI_TEST_HOME") };
+    }
+
+    #[test]
+    fn identity_paths() {
+        let _guard = TEST_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
+        let tmp = tempfile::tempdir().unwrap();
+        unsafe { std::env::set_var("JI_TEST_HOME", tmp.path().as_os_str()) };
+
+        assert!(identity_path().ends_with("ji.identity.age"));
+        assert!(identity_pub_path().ends_with("ji.identity.age.pub"));
+
+        unsafe { std::env::remove_var("JI_TEST_HOME") };
+    }
+}

@@ -1,0 +1,15 @@
+pub mod add;
+pub mod check;
+pub mod completion;
+pub mod diff;
+pub mod init;
+pub mod list;
+pub mod pack;
+pub mod pull;
+pub mod push;
+pub mod recipient;
+pub mod remote;
+pub mod rm;
+pub mod status;
+pub mod sync;
+pub mod unpack;
