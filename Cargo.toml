@@ -2,11 +2,21 @@
 name = "ji"
 version = "26.5.1"
 edition = "2024"
+authors = ["ltpenguin <littlepenguinzq@gmail.com>"]
+description = "Encrypt dotfiles into a single .ji file for safe cross-device migration"
+repository = "https://github.com/littlepenguin66/ji"
+license = "AGPL-3.0"
+keywords = ["cli", "dotfiles", "encryption", "age", "backup"]
+readme = "README.md"
+
+[[bin]]
+name = "ji"
+path = "src/main.rs"
 
 [dependencies]
 age = { version = "0.11.3", features = ["ssh"] }
 chrono = "0.4.44"
-clap = { version = "4.6.1", features = ["derive"] }
+clap = { version = "4.6.1", default-features = false, features = ["derive", "std", "help", "usage", "error-context"] }
 dirs = "6.0.0"
 glob = "0.3.3"
 hex = "0.4.3"
@@ -32,3 +42,10 @@ tempfile = "3.27.0"
 default = []
 pgp = ["dep:sequoia-openpgp"]
 ssh = []
+
+[profile.release]
+strip = true
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"

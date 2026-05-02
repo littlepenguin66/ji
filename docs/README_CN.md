@@ -2,42 +2,51 @@
 
 *把 dotfiles 装进竹箱，背上就走。*
 
+[![Rust](https://img.shields.io/badge/Rust-2024-orange?style=flat-square&logo=rust)](https://www.rust-lang.org/)
+[![License](https://img.shields.io/badge/License-AGPL%20v3-blue?style=flat-square)](LICENSE)
+
 > 昔者负笈游，今者云笈收。散珠归宝椟，代代可相酬。
 
-## Why
+---
+
+## Overview
 
 古人负笈游学——背上竹制书箱，装着亲手抄录的简牍，那便是他们全部的知识行囊。
 
-你的 `.zshrc`、`.vimrc`、`.gitconfig`，正是数字时代的书卷。**笈** 是你在这时代的负笈人——把配置加密打包成一个 `.ji` 文件，在设备之间安全迁移。走到任何一台机器前，开笈即是故乡。
+笈是你数字时代的竹箱——把 dotfiles 加密打包成一个 `.ji` 文件，在设备间安全迁移。范式上类似 chezmoi 的轻量版：源文件 → 加密打包 → 单文件迁移。不依赖 Git，不依赖 symlink。
 
-范式上类似 chezmoi 的轻量版：源文件 → 加密打包 → 单文件迁移。不依赖 Git，不依赖 symlink。
+走到任何一台机器前，开笈即是故乡。
 
 ## Features
 
 - **单文件迁移** — 所有 dotfiles 打包为一个自包含的 `.ji` 文件
 - **age 加密** — 支持 SSH key 和 age keypair，多个 recipient 任一可解密
+- **远程同步** — WebDAV 首发，SSH 通过 feature flag 支持（`--features ssh`）
 - **PGP 可选** — `--features pgp` 启用 sequoia-pgp 后端，兼容 GnuPG
-- **远程同步** — WebDAV 首发，SSH 通过 feature flag 支持
 - **完整性校验** — HMAC-SHA256 保护文件索引，SHA-256 逐文件校验
 - **原子写入** — tmp → fsync → rename，Ctrl+C 中断不留损坏文件
-- **Unix 哲学** — 每个命令做一件事，`--json` 输出可被脚本消费
+- **Unix 哲学** — 每个命令做一件事，`--json` 可被脚本消费，成功时静默
 - **Shell 补全** — bash / zsh / fish，动态补全
 
-## Install
+## Installation
+
+### 从 Crates.io 安装
 
 ```bash
-cargo install ji          # 从 crates.io 安装
+cargo install ji
 ```
 
-或者从源码构建：
+### 从源码构建
 
 ```bash
-git clone https://github.com/your/ji.git && cd ji && cargo install --path .
+git clone https://github.com/your/ji.git
+cd ji
+cargo install --path .
 ```
 
 预编译二进制和 Homebrew tap 即将推出。
 
-## Quick Start
+## Usage
 
 ### 在新机器上设置
 
@@ -51,8 +60,6 @@ ji pack                         # → ~/.local/share/ji/<hostname>.ji
 ```
 
 `ji list` 显示 manifest——即笈跟踪的文件集合。`ji pack` 以主机名（`uname -n`）命名输出文件，每台设备自然生成不同的 `.ji`。
-
-### 在另一台机器上恢复
 
 ### 在另一台机器上恢复
 
@@ -84,7 +91,7 @@ ji remote test nas
 ji pack && ji push nas mbp.ji   # 上传
 
 ji pull nas && ji unpack mbp.ji # 在另一台机器上下载
-ji sync nas                     # 自动判断方向，pack+push 或 pull
+ji sync nas                     # 自动判断方向：pack+push 或 pull
 ```
 
 ### 排查问题
@@ -95,15 +102,31 @@ ji doctor --full                # 加上 remote 连通性和 archive 扫描
 ji doctor --json | jq .checks   # 脚本可读输出
 ```
 
-## Docs
+## How It Works
 
-| 文档 | 内容 |
+笈遵循简单的流水线：
+
+1. **Track** — `ji add` 把要管理的 dotfiles 记录到 manifest
+2. **Pack** — tar 打包 → zstd 压缩 → age 加密 → 装入 `.ji` 容器
+3. **Transfer** — 用任何方式传输 `.ji` 文件（USB、scp、WebDAV、云盘）
+4. **Unpack** — 解密 → 解压 → 恢复，原子写入，冲突保护
+
+`.ji` 文件 = `encrypt( zstd( tar(manifest + files) ))`，前面附加明文 HMAC 签名的索引，使 `ji list` 和 `ji check` 无需解密即可工作。
+
+## Commands
+
+| 类别 | 命令 |
 |---|---|
-| [CLI Reference](docs/cli.md) | 每个命令、每个选项 |
-| [Architecture](docs/architecture.md) | .ji 文件格式、分层架构、加密流程 |
-| [Troubleshooting](docs/troubleshooting.md) | Doctor 导向的诊断和修复 |
+| 本地 | `init`, `add`, `rm`, `list`, `status`, `diff` |
+| 归档 | `pack`, `unpack`, `check` |
+| 远程 | `remote add/remove/list/test/files/delete`, `push`, `pull`, `sync` |
+| 安全 | `recipient list/add/remove` |
+| 诊断 | `doctor` |
+| 开发 | `completion` |
 
-## Config
+完整参考：[CLI Reference](docs/cli.md)
+
+## Configuration
 
 ```toml
 # ~/.config/ji/config.toml
@@ -119,19 +142,54 @@ url = "https://nas.local/ji/"
 user = "jrz"
 ```
 
-密码从不存储，WebDAV / SSH 每次交互输入。`.jiignore` 位于 `~/.config/ji/.jiignore`，格式同 `.gitignore`，默认排除 `.ssh/`、`.DS_Store`、`node_modules/`。
+密码从不存储，WebDAV / SSH 每次交互输入。
 
-## .ji File Format
+## Ignoring Files
 
-`.ji` 文件 = `encrypt( zstd( tar(manifest + files) ))`，前面附加明文 HMAC 签名的索引，使 `ji list` 和 `ji check` 无需解密即可工作。完整格式见 [Architecture](docs/architecture.md)。
+`.jiignore` 位于 `~/.config/ji/.jiignore`，格式同 `.gitignore`。默认排除：
+
+| 规则 | 原因 |
+|---|---|
+| `.ssh/` | 私钥不应离开本机 |
+| `.DS_Store` | macOS 元数据 |
+| `node_modules/` | 依赖包，不是配置 |
+
+## Troubleshooting
+
+先运行 `ji doctor`——一个命令诊断 config、keys、manifest 和 remote 连通性。
+
+| 问题 | 修复 |
+|---|---|
+| `no recipients configured` | `ji init --key ~/.ssh/id_ed25519.pub` |
+| `no private key available` | 检查 `~/.local/share/ji/` 或 `~/.ssh/` |
+| `HMAC verification failed` | 文件损坏，重新下载或 pack |
+| `push failed: 401` | WebDAV 密码错误 |
+| `connection refused` | 用 `ji remote test` 检查 URL |
+
+完整指南：[Troubleshooting](docs/troubleshooting.md)
 
 ## Feature Flags
 
 ```bash
 cargo build                   # 默认：age + WebDAV
-cargo build --features pgp    # + PGP 加密（需 brew install nettle）
+cargo build --features pgp    # + PGP 加密（brew install nettle）
 cargo build --features ssh    # + SSH 远程传输
 ```
+
+## Requirements
+
+- **Rust**: 1.80+（从源码构建时需要）
+- **PGP 功能**: `nettle` 系统库（macOS: `brew install nettle`，Linux: `apt install libnettle-dev`）
+
+## Docs
+
+| 文档 | 内容 |
+|---|---|
+| [CLI Reference](docs/cli.md) | 每个命令、每个选项 |
+| [Architecture](docs/architecture.md) | .ji 文件格式、分层架构、加密流程 |
+| [Troubleshooting](docs/troubleshooting.md) | Doctor 导向的诊断和修复 |
+| [Security](SECURITY.md) | 威胁模型和漏洞报告 |
+| [Release Notes](docs/release/) | 每版更新日志 |
 
 ## FAQ
 
@@ -143,11 +201,9 @@ cargo build --features ssh    # + SSH 远程传输
 
 **支持 Windows 吗？** V1 仅支持 macOS 和 Linux。
 
-**怎么换设备？** 参考上面的 cookbook：旧机器 pack → 传输 .ji 文件 → 新机器 init 并 unpack。如果多设备共用，把每台设备的 key 都加为 recipient，任意设备都能解密同一份 .ji。
-
 ## License
 
-MIT
+AGPL-3.0
 
 ---
 
