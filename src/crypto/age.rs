@@ -68,7 +68,7 @@ impl Cipher for AgeCipher {
         let text = String::from_utf8_lossy(data);
         let recipients: Vec<String> = text
             .lines()
-            .skip(1) // skip "age-encryption.org/v1"
+            .skip(1)
             .take_while(|line| !line.starts_with("---"))
             .filter(|line| line.starts_with("-> X25519 "))
             .map(|line| line[3..].trim().to_string())

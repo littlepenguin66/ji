@@ -127,7 +127,6 @@ fn check_keys(report: &mut DoctorReport) {
         report.checks.push(ok("Keys", "ji identity public key found", None));
     }
 
-    // Check SSH keys
     let home = crate::store::path::home_dir();
     let ssh_dir = home.join(".ssh");
     if ssh_dir.exists() {
@@ -154,7 +153,6 @@ fn check_keys(report: &mut DoctorReport) {
         report.checks.push(warn("Keys", "~/.ssh directory not found", None));
     }
 
-    // Check ssh-agent
     if std::env::var("SSH_AUTH_SOCK").is_ok() {
         report.checks.push(ok("Keys", "ssh-agent running",
             Some(std::env::var("SSH_AUTH_SOCK").unwrap_or_default())));
@@ -183,7 +181,6 @@ fn check_manifest(report: &mut DoctorReport) {
             }
             report.checks.push(ok("Manifest", &format!("{n} file(s) tracked"), None));
 
-            // Check file existence
             let missing: Vec<&str> = manifest.list_paths().iter()
                 .filter(|p| !crate::store::manifest::resolve_home(p).exists())
                 .map(|p| p.as_str())
@@ -196,7 +193,6 @@ fn check_manifest(report: &mut DoctorReport) {
                 report.checks.push(ok("Manifest", "all tracked files exist on disk", None));
             }
 
-            // Checksum status
             match crate::store::manifest::compute_status(&manifest) {
                 Ok(statuses) => {
                     let modified: Vec<_> = statuses.iter()
@@ -264,7 +260,6 @@ fn check_archives(report: &mut DoctorReport) {
             if name.ends_with(".ji") {
                 found += 1;
 
-                // Quick integrity check
                 let path = entry.path();
                 if let Ok(mut file) = std::fs::File::open(&path) {
                     match crate::archive::format::read_header(&mut file) {
@@ -323,7 +318,6 @@ mod tests {
         let mut report = DoctorReport { checks: Vec::new() };
         check_config(&mut report);
 
-        // First check should be an error about missing config.toml
         let first = &report.checks[0];
         assert_eq!(first.category, "Config");
         assert_eq!(first.status, CheckStatus::Error);
@@ -338,9 +332,6 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         crate::store::path::with_test_home(tmp.path(), || {
 
-        // Capture stdout via --json output
-        // run() prints to stdout; we can't easily capture it in unit tests
-        // Instead, test the internal report building
         let mut report = DoctorReport { checks: Vec::new() };
         check_config(&mut report);
         check_keys(&mut report);
@@ -365,18 +356,15 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         crate::store::path::with_test_home(tmp.path(), || {
 
-        // Create valid config
         std::fs::create_dir_all(crate::store::path::config_dir()).unwrap();
         std::fs::create_dir_all(crate::store::path::data_dir()).unwrap();
 
         let cfg = crate::store::config::Config::new(vec!["age1testkey123".into()]);
         cfg.write(&crate::store::path::config_toml()).unwrap();
 
-        // Create identity key
         let (priv_key, _pub_key) = crate::crypto::age::AgeCipher::generate_identity();
         std::fs::write(crate::store::path::identity_path(), &priv_key).unwrap();
 
-        // Create manifest with a real file
         let test_file = tmp.path().join(".zshrc");
         std::fs::write(&test_file, "export EDITOR=nvim\n").unwrap();
         let checksum = crate::store::manifest::compute_checksum(&test_file).unwrap();
@@ -389,7 +377,6 @@ mod tests {
         check_keys(&mut report);
         check_manifest(&mut report);
 
-        // All checks should be Ok
         let errors: Vec<_> = report.checks.iter()
             .filter(|c| c.status == CheckStatus::Error)
             .collect();

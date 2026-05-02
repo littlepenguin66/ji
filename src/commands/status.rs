@@ -63,7 +63,6 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         crate::store::path::with_test_home(tmp.path(), || {
 
-        // Empty manifest
         let m = Manifest::new();
         m.write(&path::manifest_toml()).unwrap();
 
@@ -78,7 +77,6 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         crate::store::path::with_test_home(tmp.path(), || {
 
-        // Create a file and add it
         let file_path = tmp.path().join(".zshrc");
         std::fs::write(&file_path, "export EDITOR=nvim").unwrap();
 

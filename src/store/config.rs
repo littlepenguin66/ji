@@ -27,7 +27,6 @@ pub struct RemoteConfig {
 }
 
 impl RemoteConfig {
-    /// Build a `Box<dyn Remote>` from this config entry.
     pub fn build(&self) -> Result<Box<dyn crate::remote::Remote>> {
         match self.remote_type.as_str() {
             "webdav" => Ok(Box::new(crate::remote::webdav::WebdavRemote {
@@ -73,7 +72,6 @@ impl Config {
                 .map_err(|e| Error::Config(format!("mkdir: {e}")))?;
         }
         let content = toml::to_string_pretty(self)?;
-        // Atomic write: tmp file → fsync → rename
         let tmp = path.with_extension("tmp");
         std::fs::write(&tmp, &content).map_err(|e| Error::Config(format!("write tmp: {e}")))?;
         std::fs::rename(&tmp, path).map_err(|e| Error::Config(format!("rename: {e}")))?;

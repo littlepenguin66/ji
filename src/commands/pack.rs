@@ -13,14 +13,12 @@ pub fn run(output: Option<PathBuf>, strict: bool, verbose: bool) -> Result<()> {
         return Ok(());
     }
 
-    // Get recipients from config
     let config = Config::read(&path::config_toml())?;
     if config.encryption.recipients.is_empty() {
         eprintln!("ji: no recipients configured. Run 'ji init' first.");
         return Ok(());
     }
 
-    // Check checksums if strict or verbose
     if strict || verbose {
         let statuses = crate::store::manifest::compute_status(&manifest)?;
         let mismatches: Vec<_> = statuses
@@ -71,7 +69,6 @@ pub fn run(output: Option<PathBuf>, strict: bool, verbose: bool) -> Result<()> {
 
     println!("Packed to {}", output_path.display());
 
-    // Update cache for diff (Step 7)
     update_cache(&manifest).ok();
 
     Ok(())
@@ -119,7 +116,6 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         crate::store::path::with_test_home(tmp.path(), || {
 
-        // Create config with recipients
         let cfg = Config::new(vec!["age1test".into()]);
         cfg.write(&path::config_toml()).unwrap();
 
@@ -134,10 +130,8 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         crate::store::path::with_test_home(tmp.path(), || {
 
-        // Generate real age keypair
         let (priv_key, pub_key) = crate::crypto::age::AgeCipher::generate_identity();
 
-        // Save identity for later decryption
         std::fs::create_dir_all(path::data_dir()).unwrap();
         std::fs::write(path::identity_path(), &priv_key).unwrap();
 
@@ -158,7 +152,6 @@ mod tests {
         assert!(output.exists());
         assert!(output.metadata().unwrap().len() > 0);
 
-        // Now unpack to verify roundtrip
         let restore_dir = tmp.path().join("restore");
         std::fs::create_dir_all(restore_dir.join(".local").join("share").join("ji")).unwrap();
         std::fs::copy(
@@ -176,7 +169,6 @@ mod tests {
         let content = std::fs::read_to_string(&restored_file).unwrap();
         assert_eq!(content, "export EDITOR=nvim\n");
 
-        // Reset test home
         unsafe { std::env::set_var("JI_TEST_HOME", tmp.path().as_os_str()) };
         });
     }

@@ -1,9 +1,6 @@
 use crate::store::path;
 
-/// Check if a path should be ignored based on .jiignore rules.
-/// Default excludes: .ssh/, .DS_Store, node_modules/
 pub fn is_ignored(relative_path: &str) -> bool {
-    // Default exclusions
     if relative_path.starts_with(".ssh/") || relative_path == ".ssh" {
         return true;
     }
@@ -14,7 +11,6 @@ pub fn is_ignored(relative_path: &str) -> bool {
         return true;
     }
 
-    // Check .jiignore file
     let jiignore = path::jiignore();
     if jiignore.exists() {
         if let Ok(contents) = std::fs::read_to_string(&jiignore) {

@@ -6,7 +6,6 @@ pub fn run_add(name: String, remote_type: String, url: String, user: Option<Stri
     let config_path = path::config_toml();
     let mut config = Config::read(&config_path)?;
 
-    // Check for duplicate name
     if config.remote.iter().any(|r| r.name == name) {
         return Err(crate::error::Error::Remote(format!(
             "remote '{name}' already exists"

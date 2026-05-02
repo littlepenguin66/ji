@@ -1,12 +1,5 @@
-//! PGP encryption backend via sequoia-openpgp.
-//!
-//! Enabled with `--features pgp`. Requires:
-//!   macOS:   brew install pkg-config nettle
-//!   Linux:   apt install pkg-config libnettle-dev
-//!
-//! Without the feature, all methods return `Error::Crypto("PGP support not compiled")`.
 
-#![allow(dead_code)] // feature-gated module
+#![allow(dead_code)]
 
 use crate::crypto::Cipher;
 use crate::error::{Error, Result};
@@ -24,7 +17,6 @@ impl Cipher for PgpCipher {
             return Err(Error::Crypto("no recipients provided".into()));
         }
 
-        // Parse recipient certificates from armored strings
         let mut recipient_keys = Vec::new();
         for r in recipients {
             let cert = sequoia_openpgp::Cert::from_bytes(r.as_bytes())
@@ -40,7 +32,6 @@ impl Cipher for PgpCipher {
 
         let mut sink = Vec::new();
 
-        // Build encryptor: armor → encrypt → literal
         let message = Message::new(&mut sink);
         let armorer = Armorer::new(message)
             .build()
@@ -80,7 +71,6 @@ impl Cipher for PgpCipher {
         let certs = load_pgp_secret_keys()?;
         let policy = StandardPolicy::new();
 
-        // Try decryption with each available secret key
         for cert in &certs {
             if let Ok(mut decryptor) =
                 DecryptorBuilder::from_bytes(data)?.with_policy(&policy, None, [cert.clone()])
@@ -130,11 +120,9 @@ impl Cipher for PgpCipher {
 fn load_pgp_secret_keys() -> Result<Vec<sequoia_openpgp::Cert>> {
     let mut certs = Vec::new();
 
-    // Try GnuPG keyring files
     if let Some(home) = dirs::home_dir() {
         let gnupg = home.join(".gnupg");
 
-        // Load from standard keyring files
         for file in &["pubring.gpg", "pubring.kbx", "secring.gpg"] {
             let path = gnupg.join(file);
             if let Ok(data) = std::fs::read(&path) {
@@ -150,7 +138,6 @@ fn load_pgp_secret_keys() -> Result<Vec<sequoia_openpgp::Cert>> {
             }
         }
 
-        // Load individual private keys (GnuPG 2.1+)
         let private_dir = gnupg.join("private-keys-v1.d");
         if let Ok(entries) = std::fs::read_dir(&private_dir) {
             for entry in entries.flatten() {

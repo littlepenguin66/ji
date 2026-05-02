@@ -14,11 +14,9 @@ pub fn run(keys: Vec<String>, auto: bool, force: bool) -> Result<()> {
         return Ok(());
     }
 
-    // Create directories
     std::fs::create_dir_all(path::config_dir()).map_err(|e| crate::error::Error::Io(e))?;
     std::fs::create_dir_all(path::data_dir()).map_err(|e| crate::error::Error::Io(e))?;
 
-    // Generate or accept keys
     let mut recipients: Vec<String> = keys;
 
     if recipients.is_empty() && !auto {
@@ -28,7 +26,6 @@ pub fn run(keys: Vec<String>, auto: bool, force: bool) -> Result<()> {
         auto_generate_keypair(&mut recipients)?;
     }
 
-    // Write config
     let config = Config::new(recipients);
     config.write(&config_path)?;
 
@@ -45,15 +42,12 @@ fn auto_generate_keypair(recipients: &mut Vec<String>) -> Result<()> {
     let identity_path = path::identity_path();
     let identity_pub_path = path::identity_pub_path();
 
-    // Ensure data directory exists
     std::fs::create_dir_all(identity_path.parent().unwrap())
         .map_err(|e| crate::error::Error::Io(e))?;
 
-    // Write private key atomically
     let tmp = identity_path.with_extension("tmp");
     std::fs::write(&tmp, &priv_key).map_err(|e| crate::error::Error::Io(e))?;
 
-    // Set permissions 0600 on Unix
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
@@ -64,7 +58,6 @@ fn auto_generate_keypair(recipients: &mut Vec<String>) -> Result<()> {
     std::fs::rename(&tmp, &identity_path).map_err(|e| crate::error::Error::Io(e))?;
     println!("Private key saved to {}", identity_path.display());
 
-    // Write public key
     std::fs::write(&identity_pub_path, format!("{}\n", pub_key))
         .map_err(|e| crate::error::Error::Io(e))?;
     println!("Public key saved to {}", identity_pub_path.display());

@@ -16,12 +16,10 @@ pub fn run(remote_name: String) -> Result<()> {
     let manifest = Manifest::read(&path::manifest_toml())?;
 
     if manifest.files.is_empty() && !path::manifest_toml().exists() {
-        // First use: pull from remote
         println!("First use: pulling from remote...");
         return crate::commands::pull::run(remote_name);
     }
 
-    // Check if there are local changes
     if !manifest.files.is_empty() {
         let statuses = crate::store::manifest::compute_status(&manifest)?;
         let has_changes = statuses
@@ -39,7 +37,6 @@ pub fn run(remote_name: String) -> Result<()> {
         }
     }
 
-    // No changes, pull latest
     println!("Pulling latest from remote...");
     crate::commands::pull::run(remote_name)
 }

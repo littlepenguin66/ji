@@ -1,9 +1,5 @@
-//! SSH remote backend via system `ssh` CLI.
-//!
-//! Enabled with `--features ssh`.
-//! Without the feature, all methods return an error instructing the user to rebuild.
 
-#![allow(dead_code)] // feature-gated module
+#![allow(dead_code)]
 
 use crate::error::{Error, Result};
 use crate::remote::{Remote, RemoteEntry};

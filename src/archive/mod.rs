@@ -44,7 +44,6 @@ fn decrypt_with(cipher: CipherType, data: &[u8]) -> Result<Vec<u8>> {
     }
 }
 
-/// Pack manifest-tracked files into a .ji archive, written atomically to `output`.
 pub fn pack_archive(
     output: &Path,
     manifest: &Manifest,
@@ -59,25 +58,19 @@ pub fn pack_archive(
         return Err(Error::Archive("no recipients configured".into()));
     }
 
-    // Build tar in memory
     let tar_data = build_tar(manifest)?;
 
-    // Build index
     let index = build_index(manifest)?;
 
-    // Compress with zstd
     let compressed = zstd::encode_all(&tar_data[..], 3)
         .map_err(|e| Error::Archive(format!("zstd compress: {e}")))?;
 
-    // Encrypt
     let encrypted = encrypt_with(cipher, &compressed, recipients)?;
 
-    // Serialize index to bytes
     let mut index_buf = Vec::new();
     format::write_index(&mut index_buf, &index)?;
     let index_len = index_buf.len() as u32;
 
-    // Atomic write: tmp file → fsync → rename
     let tmp_path = output.with_extension("ji_tmp");
     {
         let mut file = std::fs::File::create(&tmp_path)
@@ -98,8 +91,6 @@ pub fn pack_archive(
     Ok(())
 }
 
-/// Unpack a .ji archive, restoring files to `$HOME`.
-/// Returns the number of restored files.
 pub fn unpack_archive(
     input: &Path,
     dry_run: bool,
@@ -110,28 +101,22 @@ pub fn unpack_archive(
     let mut file = std::fs::File::open(input)
         .map_err(|e| Error::Archive(format!("open: {e}")))?;
 
-    // Read header
     let (cipher, index_len) = format::read_header(&mut file)?;
 
-    // Read index
     let mut index_buf = vec![0u8; index_len as usize];
     file.read_exact(&mut index_buf)
         .map_err(|e| Error::Archive(format!("read index: {e}")))?;
     let _index = format::read_index(&mut Cursor::new(&index_buf))?;
 
-    // Read encrypted payload
     let mut encrypted = Vec::new();
     file.read_to_end(&mut encrypted)
         .map_err(|e| Error::Archive(format!("read payload: {e}")))?;
 
-    // Decrypt
     let decrypted = decrypt_with(cipher, &encrypted)?;
 
-    // Decompress
     let tar_data = zstd::decode_all(&decrypted[..])
         .map_err(|e| Error::Archive(format!("zstd decompress: {e}")))?;
 
-    // Extract tar
     let home = manifest::resolve_home("");
     let restored = extract_tar(&tar_data, &home, dry_run, force, interactive, backup)?;
 
@@ -141,7 +126,6 @@ pub fn unpack_archive(
 fn build_tar(manifest: &Manifest) -> Result<Vec<u8>> {
     let mut archive = tar::Builder::new(Vec::new());
 
-    // Add manifest to the archive
     let manifest_toml = toml::to_string_pretty(manifest)?;
     let mut header = tar::Header::new_gnu();
     header
@@ -154,7 +138,6 @@ fn build_tar(manifest: &Manifest) -> Result<Vec<u8>> {
         .append(&header, Cursor::new(manifest_toml.as_bytes()))
         .map_err(|e| Error::Archive(format!("tar append manifest: {e}")))?;
 
-    // Add each tracked file
     for rel_path in manifest.list_paths() {
         let abs_path = manifest::resolve_home(rel_path);
         if !abs_path.exists() {
@@ -171,7 +154,6 @@ fn build_tar(manifest: &Manifest) -> Result<Vec<u8>> {
             .map_err(|e| Error::Archive(format!("tar header {rel_path}: {e}")))?;
         header.set_size(content.len() as u64);
 
-        // Preserve original mode if possible
         #[cfg(unix)]
         {
             use std::os::unix::fs::MetadataExt;
@@ -249,18 +231,15 @@ fn extract_tar(
             (path.to_string_lossy().to_string(), mode)
         };
 
-        // Skip the manifest file
         if path_str == ".ji_manifest.toml" {
             continue;
         }
 
-        // Extract files/ prefix
         let Some(rel_path) = path_str.strip_prefix("files/") else {
             continue;
         };
         let rel_path = rel_path.to_string();
 
-        // Path traversal protection
         if rel_path.split(std::path::MAIN_SEPARATOR).any(|c| c == "..") {
             return Err(Error::Archive(format!(
                 "path traversal denied: {rel_path}"
@@ -269,7 +248,6 @@ fn extract_tar(
 
         let dest = home.join(&rel_path);
 
-        // Conflict resolution
         if dest.exists() {
             if dry_run {
                 println!("would overwrite: {rel_path}");
@@ -301,7 +279,6 @@ fn extract_tar(
             continue;
         }
 
-        // Atomic write
         if let Some(parent) = dest.parent() {
             std::fs::create_dir_all(parent)
                 .map_err(|e| Error::Archive(format!("mkdir {rel_path}: {e}")))?;
@@ -320,7 +297,6 @@ fn extract_tar(
         file.sync_all()
             .map_err(|e| Error::Archive(format!("fsync {rel_path}: {e}")))?;
 
-        // Restore permissions
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
@@ -340,10 +316,7 @@ fn extract_tar(
     Ok(restored)
 }
 
-// ── High-level archive inspection & mutation ──
 
-/// Verify a .ji file. Fast mode checks header + index HMAC. Deep mode decrypts
-/// and verifies per-file checksums. Prints human-readable results.
 pub fn verify_archive(input: &Path, deep: bool) -> Result<()> {
     let mut file = std::fs::File::open(input)
         .map_err(|e| Error::Archive(format!("open: {e}")))?;
@@ -445,7 +418,6 @@ fn verify_manifest_checksums(tar_data: &[u8]) -> Result<()> {
     Ok(())
 }
 
-/// List recipients of a .ji file (reads only the encrypted payload header, no decryption).
 pub fn list_archive_recipients(input: &Path) -> Result<Vec<String>> {
     let data = std::fs::read(input)
         .map_err(|e| Error::Archive(format!("read: {e}")))?;
@@ -459,7 +431,6 @@ pub fn list_archive_recipients(input: &Path) -> Result<Vec<String>> {
     decrypt_with_recipients(cipher, encrypted)
 }
 
-/// Add a recipient to a .ji file atomically.
 pub fn add_archive_recipient(input: &Path, key: &str) -> Result<()> {
     let data = std::fs::read(input)
         .map_err(|e| Error::Archive(format!("read: {e}")))?;
@@ -488,7 +459,6 @@ pub fn add_archive_recipient(input: &Path, key: &str) -> Result<()> {
     rewrite_payload(input, &data, cipher, index_buf, &re_encrypted)
 }
 
-/// Remove a recipient from a .ji file atomically.
 pub fn remove_archive_recipient(input: &Path, key: &str) -> Result<()> {
     let data = std::fs::read(input)
         .map_err(|e| Error::Archive(format!("read: {e}")))?;

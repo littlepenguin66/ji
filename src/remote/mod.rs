@@ -18,7 +18,6 @@ pub trait Remote {
     fn test(&self) -> Result<()>;
 }
 
-/// Parse an SSH url of the form `host:/path` or `host:`.
 pub fn parse_ssh_url(url: &str) -> Result<(String, String)> {
     let (host, path) = url
         .split_once(':')

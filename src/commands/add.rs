@@ -14,7 +14,6 @@ pub fn run(paths: Vec<PathBuf>, include: Vec<String>, exclude: Vec<String>) -> R
             raw_path.to_string_lossy().to_string()
         };
 
-        // Check if already tracked
         if manifest.is_tracked(&rel) {
             return Err(crate::error::Error::AlreadyTracked(PathBuf::from(&rel)));
         }
@@ -46,7 +45,6 @@ fn add_file(
     include: &[String],
     exclude: &[String],
 ) -> Result<()> {
-    // Apply .jiignore rules (default + user-defined)
     if crate::store::ignore::is_ignored(rel) {
         return Ok(());
     }
@@ -127,11 +125,9 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         crate::store::path::with_test_home(tmp.path(), || {
 
-        // Create a test file under fake home
         let file_path = tmp.path().join(".zshrc");
         std::fs::write(&file_path, "export EDITOR=nvim").unwrap();
 
-        // Run add with the relative path
         run(vec![PathBuf::from(".zshrc")], vec![], vec![]).expect("add");
 
         let manifest = Manifest::read(&path::manifest_toml()).unwrap();

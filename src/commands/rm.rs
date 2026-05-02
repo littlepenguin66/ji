@@ -37,7 +37,6 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         crate::store::path::with_test_home(tmp.path(), || {
 
-        // Seed a manifest
         let mut m = Manifest::new();
         m.add(".zshrc", "abc".into());
         m.add(".gitconfig", "def".into());

@@ -29,7 +29,7 @@ pub enum FileStatus {
     Unchanged,
     Modified,
     Deleted,
-    Added, // in manifest but missing on disk
+    Added,
 }
 
 impl std::fmt::Display for FileStatus {
@@ -104,7 +104,6 @@ impl Manifest {
     }
 }
 
-/// Compute SHA-256 checksum of a file.
 pub fn compute_checksum(path: &Path) -> Result<String> {
     let mut file =
         std::fs::File::open(path).map_err(|e| Error::Manifest(format!("open {path:?}: {e}")))?;
@@ -122,19 +121,16 @@ pub fn compute_checksum(path: &Path) -> Result<String> {
     Ok(hex::encode(hasher.finalize()))
 }
 
-/// Compute SHA-256 checksum from in-memory bytes.
 pub fn compute_checksum_reader(data: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(data);
     hex::encode(hasher.finalize())
 }
 
-/// Resolve a path relative to $HOME. Returns the absolute path.
 pub fn resolve_home(relative: &str) -> PathBuf {
     crate::store::path::home_dir().join(relative.trim_start_matches('/'))
 }
 
-/// Get the relative path from $HOME.
 pub fn relativize(abs: &Path) -> Result<String> {
     let home = crate::store::path::home_dir();
     abs.strip_prefix(&home)
@@ -142,7 +138,6 @@ pub fn relativize(abs: &Path) -> Result<String> {
         .map_err(|_| Error::Manifest(format!("path {abs:?} is not under HOME")))
 }
 
-/// Compute status for all tracked files.
 pub fn compute_status(manifest: &Manifest) -> Result<Vec<StatusEntry>> {
     let mut entries = Vec::new();
 
@@ -241,7 +236,6 @@ mod tests {
         std::fs::write(&path, "hello world").unwrap();
 
         let cs = compute_checksum(&path).unwrap();
-        // SHA-256 of "hello world" is known
         assert_eq!(
             cs,
             "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
@@ -253,10 +247,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let test_file = dir.path().join("test.txt");
 
-        // Create a file and compute its checksum
         std::fs::write(&test_file, "version 1").unwrap();
 
-        // We can only test status with real HOME for now.
-        // This is tested more in integration tests.
     }
 }

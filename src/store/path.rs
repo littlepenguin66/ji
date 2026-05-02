@@ -1,11 +1,9 @@
 use std::path::PathBuf;
 use std::sync::Mutex;
 
-/// Global lock for tests that modify JI_TEST_HOME env var.
 #[allow(dead_code)]
 pub static TEST_MUTEX: Mutex<()> = Mutex::new(());
 
-/// Run a closure with `JI_TEST_HOME` set to `dir`, then clean up and restore.
 #[allow(dead_code)]
 pub fn with_test_home(dir: &std::path::Path, f: impl FnOnce()) {
     unsafe { std::env::set_var("JI_TEST_HOME", dir.as_os_str()) };
@@ -13,7 +11,6 @@ pub fn with_test_home(dir: &std::path::Path, f: impl FnOnce()) {
     unsafe { std::env::remove_var("JI_TEST_HOME") };
 }
 
-/// Single source for HOME resolution. Respects `JI_TEST_HOME` in tests.
 pub fn home_dir() -> PathBuf {
     if let Ok(test_home) = std::env::var("JI_TEST_HOME") {
         PathBuf::from(test_home)
