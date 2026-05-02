@@ -34,7 +34,7 @@ Open the case, and you're home.
 ### From Crates.io
 
 ```bash
-cargo install ji
+cargo install ji-cli
 ```
 
 ### From Source

@@ -33,7 +33,7 @@
 ### 从 Crates.io 安装
 
 ```bash
-cargo install ji
+cargo install ji-cli
 ```
 
 ### 从源码构建
