@@ -25,24 +25,20 @@ pub fn run(path_filter: Option<PathBuf>) -> Result<()> {
         let abs = manifest::resolve_home(rel_path);
         let cache_path = cache_dir.join(rel_path);
 
-        if !abs.exists() && !cache_path.exists() {
+        let cached_exists = cache_path.exists();
+
+        if !abs.exists() && !cached_exists {
             continue;
         }
 
         if !abs.exists() {
-            println!("--- a/{}", rel_path);
-            println!("+++ /dev/null");
-            println!("@@ -1 +0,0 @@");
-            println!("-<deleted>");
+            println!(" -d  {rel_path}");
             has_diff = true;
             continue;
         }
 
-        if !cache_path.exists() {
-            println!("--- /dev/null");
-            println!("+++ b/{}", rel_path);
-            println!("@@ -0,0 +1 @@");
-            println!("+<new file>");
+        if !cached_exists {
+            println!(" +a  {rel_path}");
             has_diff = true;
             continue;
         }
@@ -57,7 +53,7 @@ pub fn run(path_filter: Option<PathBuf>) -> Result<()> {
                 }
 
                 if is_binary(&curr) || is_binary(&cached) {
-                    println!("Binary files differ: {rel_path}");
+                    println!("  M  {rel_path}  (binary)");
                     has_diff = true;
                     continue;
                 }
@@ -66,16 +62,10 @@ pub fn run(path_filter: Option<PathBuf>) -> Result<()> {
                 let new = String::from_utf8_lossy(&curr).to_string();
                 let diff = TextDiff::from_lines(&old, &new);
 
-                println!("--- a/{}", rel_path);
-                println!("+++ b/{}", rel_path);
-
+                println!("  M  {rel_path}");
                 for change in diff.iter_all_changes() {
                     match change.tag() {
-                        ChangeTag::Equal => {
-                            for line in change.value().lines() {
-                                println!(" {line}");
-                            }
-                        }
+                        ChangeTag::Equal => continue,
                         ChangeTag::Delete => {
                             for line in change.value().lines() {
                                 println!("-{line}");
