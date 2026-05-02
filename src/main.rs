@@ -125,11 +125,9 @@ enum Command {
 
     /// Verify .ji file integrity
     Check {
-        /// The .ji file to verify
         #[arg(value_name = "INPUT.ji")]
-        input: PathBuf,
+        input: Option<PathBuf>,
 
-        /// Full verification including decryption and file checksums
         #[arg(long = "deep")]
         deep: bool,
     },

@@ -318,23 +318,13 @@ pub fn verify_archive(input: &Path, deep: bool) -> Result<()> {
         .map_err(|e| Error::Archive(format!("open: {e}")))?;
 
     let (cipher, index_len) = format::read_header(&mut file)?;
-    let cipher_name = match cipher {
-        CipherType::Age => "age",
-        CipherType::Pgp => "pgp",
-    };
-    println!("cipher: {cipher_name}");
 
     let mut index_buf = vec![0u8; index_len as usize];
     file.read_exact(&mut index_buf)
         .map_err(|e| Error::Archive(format!("read index: {e}")))?;
     let index = format::read_index(&mut std::io::Cursor::new(&index_buf))?;
 
-    println!("files:");
-    for entry in &index.entries {
-        println!("  {} ({} bytes)", entry.name, entry.size);
-    }
-    println!("total: {} bytes", index.total_size);
-    println!("HMAC: OK");
+    print_index_tree(&index.entries);
 
     if deep {
         let mut encrypted = Vec::new();
@@ -349,8 +339,64 @@ pub fn verify_archive(input: &Path, deep: bool) -> Result<()> {
         println!("deep check: OK");
     }
 
-    println!("ji: {} checksum OK", input.display());
+    println!("HMAC OK    {} files  {}", index.entries.len(), human_size(index.total_size));
+    println!("{}", input.display());
     Ok(())
+}
+
+fn human_size(bytes: u64) -> String {
+    if bytes < 1024 {
+        format!("{}B", bytes)
+    } else if bytes < 1024 * 1024 {
+        format!("{:.1}K", bytes as f64 / 1024.0)
+    } else {
+        format!("{:.1}M", bytes as f64 / (1024.0 * 1024.0))
+    }
+}
+
+fn print_index_tree(entries: &[IndexEntry]) {
+    use std::collections::BTreeMap;
+
+    #[derive(Default)]
+    struct Node {
+        children: BTreeMap<String, Node>,
+        size: Option<u64>,
+    }
+
+    let mut root = Node::default();
+    for entry in entries {
+        let parts: Vec<&str> = entry.name.split('/').collect();
+        let mut current = &mut root;
+        for (i, part) in parts.iter().enumerate() {
+            current = current.children.entry(part.to_string()).or_default();
+            if i == parts.len() - 1 {
+                current.size = Some(entry.size);
+            }
+        }
+    }
+
+    fn print(node: &Node, prefix: &str) {
+        let items: Vec<_> = node.children.iter().collect();
+        for (i, (name, child)) in items.iter().enumerate() {
+            let last = i == items.len() - 1;
+            let branch = if last { "\u{2514}" } else { "\u{251c}" };
+            let conn = format!("{prefix}{branch}");
+            if child.children.is_empty() {
+                if let Some(size) = child.size {
+                    println!("{conn} {name}  {}", human_size(size));
+                } else {
+                    println!("{conn} {name}");
+                }
+            } else {
+                println!("{conn} {name}/");
+                let next = format!("{prefix}{}", if last { "   " } else { "\u{2502}  " });
+                print(child, &next);
+            }
+        }
+    }
+
+    println!("{} files", entries.len());
+    print(&root, "");
 }
 
 fn verify_manifest_checksums(tar_data: &[u8]) -> Result<()> {

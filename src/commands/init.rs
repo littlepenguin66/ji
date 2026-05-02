@@ -17,7 +17,10 @@ pub fn run(keys: Vec<String>, auto: bool, force: bool) -> Result<()> {
     std::fs::create_dir_all(path::config_dir()).map_err(|e| crate::error::Error::Io(e))?;
     std::fs::create_dir_all(path::data_dir()).map_err(|e| crate::error::Error::Io(e))?;
 
-    let mut recipients: Vec<String> = keys;
+    let mut recipients: Vec<String> = Vec::new();
+    for k in keys {
+        recipients.push(resolve_key(&k)?);
+    }
 
     if recipients.is_empty() && !auto {
         eprintln!("No recipients specified. Generating age keypair...");
@@ -32,6 +35,17 @@ pub fn run(keys: Vec<String>, auto: bool, force: bool) -> Result<()> {
     println!("Next: ji add your dotfiles, then ji pack");
 
     Ok(())
+}
+
+fn resolve_key(key: &str) -> Result<String> {
+    let path = std::path::Path::new(key);
+    if path.is_file() {
+        let content = std::fs::read_to_string(path)
+            .map_err(|e| crate::error::Error::Config(format!("read key file {key}: {e}")))?;
+        Ok(content.trim().to_string())
+    } else {
+        Ok(key.to_string())
+    }
 }
 
 fn auto_generate_keypair(recipients: &mut Vec<String>) -> Result<()> {

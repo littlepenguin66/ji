@@ -21,15 +21,9 @@ impl Cipher for AgeCipher {
             return Err(Error::Crypto("no recipients provided".into()));
         }
 
-        let recs: Vec<age::x25519::Recipient> = recipients
-            .iter()
-            .map(|r| {
-                r.parse()
-                    .map_err(|e: &'static str| Error::Crypto(format!("parse recipient: {e}")))
-            })
-            .collect::<Result<Vec<_>>>()?;
+        let recs = parse_recipients(recipients)?;
 
-        let encryptor = age::Encryptor::with_recipients(recs.iter().map(|r| r as &dyn age::Recipient))
+        let encryptor = age::Encryptor::with_recipients(recs.iter().map(|r| r.as_ref()))
             .map_err(|e| Error::Crypto(format!("encrypt setup: {e}")))?;
 
         let mut output = vec![];
@@ -75,6 +69,21 @@ impl Cipher for AgeCipher {
             .collect();
         Ok(recipients)
     }
+}
+
+fn parse_recipients(keys: &[String]) -> Result<Vec<Box<dyn age::Recipient>>> {
+    let mut recs: Vec<Box<dyn age::Recipient>> = Vec::new();
+    for r in keys {
+        if let Ok(native) = r.parse::<age::x25519::Recipient>() {
+            recs.push(Box::new(native));
+            continue;
+        }
+        match r.parse::<age::ssh::Recipient>() {
+            Ok(ssh) => recs.push(Box::new(ssh)),
+            Err(e) => return Err(Error::Crypto(format!("parse recipient: {e:?}"))),
+        }
+    }
+    Ok(recs)
 }
 
 fn load_identities() -> Result<Vec<Box<dyn age::Identity>>> {
