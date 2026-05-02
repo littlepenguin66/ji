@@ -27,77 +27,56 @@ Think of it as a lightweight chezmoi: source files → encrypted archive → sin
 ## Quick Start
 
 ```bash
-# Install
 cargo install --path .
 ```
 
-### First time: set up and pack
+### Set up a new machine
 
 ```bash
-# 1. Initialize — creates config + generates age keypair
-ji init
-
-# 2. Add the dotfiles you want to carry
+ji init                         # generates age keypair, creates config
 ji add .zshrc .gitconfig .config/nvim/
-ji add **/* --exclude "*.zwc"
-
-# 3. Check what's tracked
-ji list
-ji status
-
-# 4. Pack into an encrypted .ji file
-ji pack
-# → ~/.local/share/ji/mbp.ji
+ji add **/* --exclude "*.zwc"   # bulk add with filters
+ji list                         # see what's tracked
+ji status                       # check for uncommitted changes
+ji pack                         # → ~/.local/share/ji/mbp.ji
 ```
 
-### Switch to a new machine
+### Restore on another machine
 
 ```bash
-# 1. Bring your .ji file over (USB, scp, cloud...)
-# 2. Initialize ji on the new machine
 ji init --key ~/.ssh/id_ed25519.pub
-
-# 3. Preview what will be restored
-ji unpack mbp.ji --dry-run
-
-# 4. Restore
-ji unpack mbp.ji --backup
-
-# 5. Check everything looks right
-ji status
+ji unpack mbp.ji --dry-run      # preview first
+ji unpack mbp.ji --backup       # restore, backup existing files
+ji status                       # verify
 ```
 
-### Share access between your devices
+### Work across multiple devices
 
 ```bash
-# Desktop packs, laptop wants to decrypt too
 ji recipient add --key ~/.ssh/laptop.pub mbp.ji
-# Now both machines can decrypt mbp.ji with their own key
+ji recipient add --key ~/.ssh/desktop.pub mbp.ji
+ji recipient list mbp.ji
 ```
 
-### Sync with a remote (WebDAV NAS)
+Each device uses its own SSH key. Any one can decrypt the same `.ji` file.
+
+### Sync via WebDAV
 
 ```bash
-# One-time setup
 ji remote add nas --type webdav --url https://nas.local/ji/ --user jrz
 ji remote test nas
+ji pack && ji push nas mbp.ji   # upload
 
-# Push to remote
-ji pack && ji push nas mbp.ji
-
-# Pull on another machine
-ji pull nas
-ji unpack mbp.ji
-
-# Or just sync (detects direction automatically)
-ji sync nas
+ji pull nas && ji unpack mbp.ji # download on another machine
+ji sync nas                     # auto-detect direction & pack/push or pull
 ```
 
-### Check the health of your setup
+### Diagnose issues
 
 ```bash
-ji doctor           # fast: config + keys + manifest
-ji doctor --full    # everything + remote + archives
+ji doctor                       # config + keys + manifest
+ji doctor --full                # add remote connectivity + archive scan
+ji doctor --json | jq .checks   # scriptable output
 ```
 
 ## Docs
@@ -128,19 +107,7 @@ Passwords are never stored — WebDAV / SSH prompts each time. `.jiignore` at `~
 
 ## .ji File Format
 
-```
-┌──────────────────────────────┐
-│ magic: 0xE6 0xAC 0x88        │  ← "笈" in UTF-8 (3 bytes)
-│ version: u8 (1)               │
-│ cipher: u8 (0=age, 1=pgp)    │
-│ index_len: u32                │
-├──────────────────────────────┤
-│ plaintext index (HMAC-SHA256) │  ← inspectable without decryption
-├──────────────────────────────┤
-│ encrypted payload             │
-│   encrypt( zstd( tar(...) )) │
-└──────────────────────────────┘
-```
+A `.ji` file is `encrypt( zstd( tar(manifest + files) ))` — with a plaintext HMAC-signed index prepended so `ji list` and `ji check` work without decryption. Full spec in [Architecture](docs/architecture.md).
 
 ## Feature Flags
 
