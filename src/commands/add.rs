@@ -15,7 +15,7 @@ pub fn run(paths: Vec<PathBuf>, include: Vec<String>, exclude: Vec<String>) -> R
         };
 
         if manifest.is_tracked(&rel) {
-            return Err(crate::error::Error::AlreadyTracked(PathBuf::from(&rel)));
+            continue;
         }
 
         let abs = manifest::resolve_home(&rel);

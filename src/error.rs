@@ -26,9 +26,6 @@ pub enum Error {
     #[error("'{0}' not tracked")]
     NotTracked(PathBuf),
 
-    #[error("'{0}' already tracked")]
-    AlreadyTracked(PathBuf),
-
     #[error("checksum mismatch for '{path}': expected {expected}, got {got}")]
     ChecksumMismatch {
         path: PathBuf,
