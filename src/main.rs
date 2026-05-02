@@ -72,6 +72,10 @@ enum Command {
         /// Output in JSON format
         #[arg(long = "json")]
         json: bool,
+
+        /// Show file sizes and checksums
+        #[arg(short = 'v', long = "verbose")]
+        verbose: bool,
     },
 
     /// Show file change status
@@ -308,7 +312,7 @@ fn run(cli: Cli) -> error::Result<()> {
             exclude,
         } => commands::add::run(paths, include, exclude),
         Rm { paths, all } => commands::rm::run(paths, all),
-        List { json } => commands::list::run(json),
+        List { json, verbose } => commands::list::run(json, verbose),
         Status { short } => commands::status::run(short),
         Pack {
             output,
