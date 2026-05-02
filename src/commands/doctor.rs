@@ -115,33 +115,26 @@ fn check_keys(report: &mut DoctorReport) {
     let identity = crate::store::path::identity_path();
     let identity_pub = crate::store::path::identity_pub_path();
 
+    let home = crate::store::path::home_dir();
+    let ssh_dir = home.join(".ssh");
+    let ssh_count = count_ssh_keys(&ssh_dir);
+
     if identity.exists() {
         report.checks.push(ok("Keys", "ji identity key found",
             Some(identity.display().to_string())));
+    } else if ssh_count > 0 {
+        report.checks.push(ok("Keys", "no ji identity key, but SSH keys available",
+            Some("age will use ~/.ssh keys for decryption".into())));
     } else {
-        report.checks.push(warn("Keys", "no ji identity key",
-            Some("run `ji init` to generate".into())));
+        report.checks.push(warn("Keys", "no ji identity key and no SSH keys",
+            Some("run `ji init` or `ji init --key ~/.ssh/id_ed25519.pub`".into())));
     }
 
     if identity_pub.exists() {
         report.checks.push(ok("Keys", "ji identity public key found", None));
     }
 
-    let home = crate::store::path::home_dir();
-    let ssh_dir = home.join(".ssh");
     if ssh_dir.exists() {
-        let mut ssh_count = 0u32;
-        if let Ok(entries) = std::fs::read_dir(&ssh_dir) {
-            for entry in entries.flatten() {
-                let name = entry.file_name();
-                let name = name.to_string_lossy();
-                if !name.ends_with(".pub") && name != "known_hosts" && name != "authorized_keys"
-                    && entry.path().is_file()
-                {
-                    ssh_count += 1;
-                }
-            }
-        }
         if ssh_count > 0 {
             report.checks.push(ok("Keys",
                 &format!("{ssh_count} SSH private key(s) in ~/.ssh"), None));
@@ -160,6 +153,22 @@ fn check_keys(report: &mut DoctorReport) {
         report.checks.push(warn("Keys", "ssh-agent not running",
             Some("age will use key files directly for decryption".into())));
     }
+}
+
+fn count_ssh_keys(ssh_dir: &std::path::Path) -> u32 {
+    let mut count = 0u32;
+    if let Ok(entries) = std::fs::read_dir(ssh_dir) {
+        for entry in entries.flatten() {
+            let name = entry.file_name();
+            let name = name.to_string_lossy();
+            if name.starts_with("id_") && !name.ends_with(".pub")
+                && entry.path().is_file()
+            {
+                count += 1;
+            }
+        }
+    }
+    count
 }
 
 fn check_manifest(report: &mut DoctorReport) {
