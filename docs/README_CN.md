@@ -180,5 +180,3 @@ MIT
 ---
 
 若笈于你有用，欢迎 star。Bug 或想法，开 issue 聊。
-
-English docs: [README.md](../README.md)

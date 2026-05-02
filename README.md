@@ -1,119 +1,120 @@
 # 笈 (ji)
 
-*把 dotfiles 装进竹箱，背上就走。*
+*Pack your dotfiles into a bamboo case and go.*
 
 > 昔者负笈游，今者云笈收。散珠归宝椟，代代可相酬。
+> *Once, scholars wandered with bamboo cases on their backs. Now, the cloud carries your scrolls.*
 
 ## Why
 
-古人负笈游学——背上竹制书箱，装着亲手抄录的简牍，那便是他们全部的知识行囊。
+Ancient scholars carried a 笈 — a bamboo book-case — filled with hand-copied manuscripts. That case held everything they needed to work, wherever they went.
 
-你的 `.zshrc`、`.vimrc`、`.gitconfig`，正是数字时代的书卷。**笈** 是你在这时代的负笈人——把配置加密打包成一个 `.ji` 文件，在设备之间安全迁移。走到任何一台机器前，开笈即是故乡。
+Your `.zshrc`, `.vimrc`, `.gitconfig` are today's manuscripts. **ji** is your bamboo case — encrypt your dotfiles into a single `.ji` file and carry them safely between machines. Open the case, and you're home.
 
-范式上类似 chezmoi 的轻量版：源文件 → 加密打包 → 单文件迁移。不依赖 Git，不依赖 symlink。
+Think of it as a lightweight chezmoi: source files → encrypted archive → single-file migration. No Git, no symlinks.
 
 ## Features
 
-- **单文件迁移**：所有 dotfiles 打包为一个 `.ji` 文件，加密后自包含、可独立传输
-- **age 加密**：默认用 age 协议，支持 SSH key 和 age keypair，多 recipient 任一可解密
-- **PGP 可选**：`--features pgp` 启用 sequoia-pgp 后端，兼容 GnuPG 生态
-- **远程同步**：WebDAV 首发，`ji push` / `ji pull` 传到 NAS 或网盘；SSH 通过 feature flag 支持
-- **完整性校验**：HMAC-SHA256 保护文件索引，SHA-256 逐文件校验，防篡改
-- **原子写入**：所有写操作先写 `.ji_tmp` → fsync → rename，Ctrl+C 中断不留损坏文件
-- **Unix 哲学**：每个命令做一件事，管道友好，`--json` 输出可被脚本消费
-- **Shell 补全**：bash / zsh / fish，动态补全自动从 `ji list --json` / `ji remote list --json` 取值
+- **Single-file migration** — all dotfiles packed into one self-contained `.ji` file
+- **age encryption** — supports SSH keys and age keypairs, multiple recipients
+- **Optional PGP** — `--features pgp` enables sequoia-pgp backend for GnuPG users
+- **Remote sync** — WebDAV first class; SSH via feature flag
+- **Integrity verification** — HMAC-SHA256 on the file index, SHA-256 per-file checksums
+- **Atomic writes** — tmp → fsync → rename everywhere, Ctrl+C leaves nothing broken
+- **Unix philosophy** — each command does one thing, `--json` for scripting
+- **Shell completions** — bash / zsh / fish with dynamic argument completion
 
 ## Quick Start
 
 ```bash
-# 安装
+# Install
 cargo install --path .
 
-# 初始化
-ji init                        # 交互式生成 age keypair
-ji init -a                     # 自动生成，跳过交互
-ji init --key ~/.ssh/id_ed25519.pub  # 用已有 SSH key
+# Initialize
+ji init                        # interactive age keypair generation
+ji init -a                     # skip prompts, auto-generate
+ji init --key ~/.ssh/id_ed25519.pub  # use existing SSH key
 
-# 添加文件
+# Add files
 ji add .zshrc .gitconfig .config/nvim/
 ji add **/* --exclude "*.zwc"
 
-# 打包
+# Pack
 ji pack                        # → ~/.local/share/ji/<hostname>.ji
 
-# 校验
-ji check mbp.ji                # 快速：查看文件列表 + 验证 HMAC
-ji check mbp.ji --deep         # 完整：解密后逐文件校验 checksum
+# Verify
+ji check mbp.ji                # fast: list files + verify HMAC
+ji check mbp.ji --deep         # full: decrypt and verify all checksums
 
-# 恢复
-ji unpack mbp.ji               # 跳过已存在的文件
-ji unpack mbp.ji --backup      # 覆盖前将旧文件备份为 .bak
-ji unpack mbp.ji --dry-run     # 预览，不实际写入
+# Restore
+ji unpack mbp.ji               # skip existing files
+ji unpack mbp.ji --backup      # backup existing files as .bak first
+ji unpack mbp.ji --dry-run     # preview without writing
 ```
 
 ## Usage
 
-### 本地管理
+### Local
 
-| 命令 | 说明 |
+| Command | Description |
 |---|---|
-| `ji init [--key <K>]... [-a] [--force]` | 初始化配置，生成 age keypair |
-| `ji add <PATH>... [--include <P>] [--exclude <P>]` | 添加文件到跟踪清单 |
-| `ji rm <PATH>... [--all]` | 从跟踪清单移除 |
-| `ji list [--json]` | 列出跟踪的文件及 checksum |
-| `ji status [-s]` | 对比本地变更（M=修改, -=删除, A=新增） |
-| `ji diff [<PATH>]` | 显示 unified diff（需先 pack 生成缓存） |
-| `ji pack [-o <PATH>] [--strict] [--verbose]` | 打包加密为 .ji 文件 |
-| `ji unpack <INPUT> [--force\|--backup\|--interactive]` | 解密恢复 |
-| `ji check <INPUT> [--deep]` | 校验 .ji 完整性 |
+| `ji init [--key <K>]... [-a] [--force]` | Initialize config and generate age keypair |
+| `ji add <PATH>... [--include <P>] [--exclude <P>]` | Add files to tracking manifest |
+| `ji rm <PATH>... [--all]` | Remove files from manifest |
+| `ji list [--json]` | List tracked files and checksums |
+| `ji status [-s]` | Show file change status (M=modified, -=deleted, A=missing) |
+| `ji diff [<PATH>]` | Show unified diff (requires prior pack for cache) |
+| `ji pack [-o <PATH>] [--strict] [--verbose]` | Pack into encrypted .ji file |
+| `ji unpack <INPUT> [--force\|--backup\|--interactive]` | Decrypt and restore |
+| `ji check <INPUT> [--deep]` | Verify .ji integrity |
 
-### 远程同步
+### Remote
 
-| 命令 | 说明 |
+| Command | Description |
 |---|---|
-| `ji remote add <NAME> --type webdav --url <URL> [--user <U>]` | 添加远程端点 |
-| `ji remote remove <NAME>` | 删除端点 |
-| `ji remote list [--json]` | 列出所有端点 |
-| `ji remote test <NAME>` | 测试连接 |
-| `ji remote files <NAME>` | 列出远端 .ji 文件 |
-| `ji remote delete <NAME> <FILE>` | 删除远端 .ji |
-| `ji push <NAME> <INPUT>` | 推送 .ji 到远端 |
-| `ji pull <NAME>` | 从远端拉取 .ji |
-| `ji sync <NAME>` | 双向同步（本地有变更则 pack+push，否则 pull） |
+| `ji remote add <NAME> --type webdav --url <URL> [--user <U>]` | Add remote endpoint |
+| `ji remote remove <NAME>` | Remove endpoint |
+| `ji remote list [--json]` | List all endpoints |
+| `ji remote test <NAME>` | Test connectivity |
+| `ji remote files <NAME>` | List .ji files on remote |
+| `ji remote delete <NAME> <FILE>` | Delete .ji from remote |
+| `ji push <NAME> <INPUT>` | Push .ji to remote |
+| `ji pull <NAME>` | Pull .ji from remote |
+| `ji sync <NAME>` | Bidirectional sync (pack+push if local changes, else pull) |
 
 ```bash
-# 添加 WebDAV 端点
+# Add a WebDAV endpoint
 ji remote add nas --type webdav --url https://nas.local/ji/ --user jrz
 
-# 推送
+# Push
 ji pack && ji push nas mbp.ji
 
-# 新机上拉取
+# Pull on a new machine
 ji pull nas && ji unpack mbp.ji
 
-# 一键同步
+# Or just sync
 ji sync nas
 ```
 
-### Key 管理
+### Recipients
 
-| 命令 | 说明 |
+| Command | Description |
 |---|---|
-| `ji recipient list <INPUT>` | 列出 .ji 文件的所有 recipient |
-| `ji recipient add --key <PUBKEY> <INPUT>` | 添加 recipient（需能解密） |
-| `ji recipient remove --key <PUBKEY> <INPUT>` | 移除 recipient |
+| `ji recipient list <INPUT>` | List all recipients of a .ji file |
+| `ji recipient add --key <PUBKEY> <INPUT>` | Add a recipient (requires decryption ability) |
+| `ji recipient remove --key <PUBKEY> <INPUT>` | Remove a recipient |
 
 ```bash
-# 台式机打包，笔记本也想解开
+# Desktop packs, laptop wants to decrypt
 ji recipient add --key ~/.ssh/laptop.pub mbp.ji
-# 现在两台设备各自的 key 都能解密 mbp.ji
+# Now both machines can decrypt mbp.ji with their own keys
 ```
 
-### 其他
+### Other
 
-| 命令 | 说明 |
+| Command | Description |
 |---|---|
-| `ji completion <SHELL>` | 生成 bash/zsh/fish 补全脚本 |
+| `ji completion <SHELL>` | Generate shell completion script |
 
 ```bash
 ji completion fish > ~/.config/fish/completions/ji.fish
@@ -135,20 +136,20 @@ url = "https://nas.local/ji/"
 user = "jrz"
 ```
 
-密码不存储，WebDAV / SSH 每次交互输入。`.jiignore` 位于 `~/.config/ji/.jiignore`，格式同 `.gitignore`，默认排除 `.ssh/`、`.DS_Store`、`node_modules/`。
+Passwords are never stored — WebDAV / SSH prompts each time. `.jiignore` at `~/.config/ji/.jiignore` uses gitignore syntax; defaults exclude `.ssh/`, `.DS_Store`, `node_modules/`.
 
 ## .ji File Format
 
 ```
 ┌──────────────────────────────┐
-│ magic: 0xE6 0xAC 0x88        │  ← "笈" UTF-8 (3 bytes)
+│ magic: 0xE6 0xAC 0x88        │  ← "笈" in UTF-8 (3 bytes)
 │ version: u8 (1)               │
 │ cipher: u8 (0=age, 1=pgp)    │
 │ index_len: u32                │
 ├──────────────────────────────┤
-│ 明文 index（HMAC-SHA256）     │  ← 无需解密即可查看文件列表
+│ plaintext index (HMAC-SHA256) │  ← inspectable without decryption
 ├──────────────────────────────┤
-│ 加密 payload                  │
+│ encrypted payload             │
 │   encrypt( zstd( tar(...) )) │
 └──────────────────────────────┘
 ```
@@ -156,22 +157,22 @@ user = "jrz"
 ## Feature Flags
 
 ```bash
-cargo build                   # 默认：age 加密 + WebDAV 远程
-cargo build --features pgp    # + PGP 加密（需 brew install nettle）
-cargo build --features ssh    # + SSH 远程传输
+cargo build                   # default: age + WebDAV
+cargo build --features pgp    # + PGP encryption (needs nettle: brew install nettle)
+cargo build --features ssh    # + SSH remote transport
 ```
 
 ## FAQ
 
-**和 chezmoi 有什么区别？** chezmoi 依赖 Git 做传输，配置文件可以单独加密但不做整体封装。笈把一切打包成一个加密 `.ji` 文件，自包含、可独立传输。不依赖 Git，不泄露文件元数据。
+**How is this different from chezmoi?** chezmoi relies on Git as the transport layer and encrypts files individually. ji packs everything into a single encrypted `.ji` file — self-contained, no Git dependency, no leaked metadata.
 
-**为什么不直接用 Git？** Git 泄露文件名、大小、变更频率。笈的 `.ji` 文件加密后是单一 blob，连里面有什么都看不到。Git 适合版本历史，笈适合安全迁移。
+**Why not just use Git?** Git leaks file names, sizes, and change frequency. ji's `.ji` file is an opaque encrypted blob. Git is for version history; ji is for secure migration.
 
-**密码存哪？** 不存储。每次 push/pull 交互输入。笈不碰你的凭据。
+**Where are passwords stored?** Nowhere. ji prompts for passwords on every push/pull and never touches your credentials.
 
-**支持 Windows 吗？** V1 仅支持 macOS 和 Linux。
+**Windows support?** V1 targets macOS and Linux only.
 
-**怎么换设备？** `ji pack` 生成 `hostname.ji` → 传到新设备 → `ji init --key <新设备的key>` → `ji unpack hostname.ji`。如果是同一人，先 `ji recipient add` 把新设备 key 加进 .ji 再传。
+**How do I switch machines?** `ji pack` on the old machine → transfer the `.ji` file → `ji init --key <new key>` → `ji unpack`. If you're the same person, add the new machine's key as a recipient first: `ji recipient add --key ~/.ssh/new.pub old.ji`.
 
 ## License
 
@@ -179,4 +180,6 @@ MIT
 
 ---
 
-若笈于你有用，欢迎 star。Bug 或想法，开 issue 聊。
+If ji helps you, give it a star. Bugs or ideas? Open an issue.
+
+[中文文档](docs/README_CN.md)
