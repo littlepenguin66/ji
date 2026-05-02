@@ -19,13 +19,9 @@ pub trait Remote {
 }
 
 pub fn parse_ssh_url(url: &str) -> Result<(String, String)> {
-    let (host, path) = url
-        .split_once(':')
-        .ok_or_else(|| {
-            crate::error::Error::Remote(format!(
-                "invalid ssh url: {url} (expected host:/path)"
-            ))
-        })?;
+    let (host, path) = url.split_once(':').ok_or_else(|| {
+        crate::error::Error::Remote(format!("invalid ssh url: {url} (expected host:/path)"))
+    })?;
     Ok((host.to_string(), path.to_string()))
 }
 

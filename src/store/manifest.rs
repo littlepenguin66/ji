@@ -61,8 +61,7 @@ impl Manifest {
 
     pub fn write(&self, path: &Path) -> Result<()> {
         if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent)
-                .map_err(|e| Error::Manifest(format!("mkdir: {e}")))?;
+            std::fs::create_dir_all(parent).map_err(|e| Error::Manifest(format!("mkdir: {e}")))?;
         }
         let content = toml::to_string_pretty(self)?;
         let tmp = path.with_extension("tmp");
@@ -72,10 +71,7 @@ impl Manifest {
     }
 
     pub fn add(&mut self, path: &str, checksum: String) {
-        self.files.insert(
-            path.to_string(),
-            FileEntry { checksum },
-        );
+        self.files.insert(path.to_string(), FileEntry { checksum });
     }
 
     pub fn remove(&mut self, path: &str) -> Result<()> {
@@ -248,6 +244,5 @@ mod tests {
         let test_file = dir.path().join("test.txt");
 
         std::fs::write(&test_file, "version 1").unwrap();
-
     }
 }

@@ -12,16 +12,16 @@ pub fn is_ignored(relative_path: &str) -> bool {
     }
 
     let jiignore = path::jiignore();
-    if jiignore.exists() {
-        if let Ok(contents) = std::fs::read_to_string(&jiignore) {
-            for line in contents.lines() {
-                let line = line.trim();
-                if line.is_empty() || line.starts_with('#') {
-                    continue;
-                }
-                if match_simple_pattern(line, relative_path) {
-                    return true;
-                }
+    if jiignore.exists()
+        && let Ok(contents) = std::fs::read_to_string(&jiignore)
+    {
+        for line in contents.lines() {
+            let line = line.trim();
+            if line.is_empty() || line.starts_with('#') {
+                continue;
+            }
+            if match_simple_pattern(line, relative_path) {
+                return true;
             }
         }
     }
@@ -46,17 +46,14 @@ fn match_simple_pattern(pattern: &str, path: &str) -> bool {
 mod tests {
     use super::*;
 
-
     #[test]
     fn default_excludes_ssh() {
         let _guard = path::TEST_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
         let tmp = tempfile::tempdir().unwrap();
         crate::store::path::with_test_home(tmp.path(), || {
-
-        assert!(is_ignored(".ssh/config"));
-        assert!(is_ignored(".ssh"));
-        assert!(!is_ignored(".zshrc"));
-
+            assert!(is_ignored(".ssh/config"));
+            assert!(is_ignored(".ssh"));
+            assert!(!is_ignored(".zshrc"));
         });
     }
 
@@ -65,11 +62,9 @@ mod tests {
         let _guard = path::TEST_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
         let tmp = tempfile::tempdir().unwrap();
         crate::store::path::with_test_home(tmp.path(), || {
-
-        assert!(is_ignored(".DS_Store"));
-        assert!(is_ignored("some/dir/.DS_Store"));
-        assert!(!is_ignored(".gitconfig"));
-
+            assert!(is_ignored(".DS_Store"));
+            assert!(is_ignored("some/dir/.DS_Store"));
+            assert!(!is_ignored(".gitconfig"));
         });
     }
 
@@ -78,11 +73,9 @@ mod tests {
         let _guard = path::TEST_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
         let tmp = tempfile::tempdir().unwrap();
         crate::store::path::with_test_home(tmp.path(), || {
-
-        assert!(is_ignored("node_modules/react/index.js"));
-        assert!(is_ignored("node_modules"));
-        assert!(!is_ignored("src/node_modules_helper"));
-
+            assert!(is_ignored("node_modules/react/index.js"));
+            assert!(is_ignored("node_modules"));
+            assert!(!is_ignored("src/node_modules_helper"));
         });
     }
 
@@ -91,14 +84,12 @@ mod tests {
         let _guard = path::TEST_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
         let tmp = tempfile::tempdir().unwrap();
         crate::store::path::with_test_home(tmp.path(), || {
+            std::fs::create_dir_all(path::config_dir()).unwrap();
+            std::fs::write(path::jiignore(), "*.zwc\n*.tmp\n").unwrap();
 
-        std::fs::create_dir_all(path::config_dir()).unwrap();
-        std::fs::write(path::jiignore(), "*.zwc\n*.tmp\n").unwrap();
-
-        assert!(is_ignored("test.zwc"));
-        assert!(is_ignored("backup.tmp"));
-        assert!(!is_ignored("test.conf"));
-
+            assert!(is_ignored("test.zwc"));
+            assert!(is_ignored("backup.tmp"));
+            assert!(!is_ignored("test.conf"));
         });
     }
 
@@ -107,13 +98,11 @@ mod tests {
         let _guard = path::TEST_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
         let tmp = tempfile::tempdir().unwrap();
         crate::store::path::with_test_home(tmp.path(), || {
+            std::fs::create_dir_all(path::config_dir()).unwrap();
+            std::fs::write(path::jiignore(), "# comment\n\n*.secret\n").unwrap();
 
-        std::fs::create_dir_all(path::config_dir()).unwrap();
-        std::fs::write(path::jiignore(), "# comment\n\n*.secret\n").unwrap();
-
-        assert!(is_ignored("my.secret"));
-        assert!(!is_ignored("# comment"));
-
+            assert!(is_ignored("my.secret"));
+            assert!(!is_ignored("# comment"));
         });
     }
 }

@@ -1,7 +1,7 @@
 pub mod format;
 
-use crate::crypto::age::AgeCipher;
 use crate::crypto::Cipher;
+use crate::crypto::age::AgeCipher;
 use crate::error::{Error, Result};
 use crate::store::manifest::{self, Manifest};
 use format::{CipherType, IndexEntry, PlainIndex};
@@ -85,8 +85,7 @@ pub fn pack_archive(
             .map_err(|e| Error::Archive(format!("fsync: {e}")))?;
     }
 
-    std::fs::rename(&tmp_path, output)
-        .map_err(|e| Error::Archive(format!("rename: {e}")))?;
+    std::fs::rename(&tmp_path, output).map_err(|e| Error::Archive(format!("rename: {e}")))?;
 
     Ok(())
 }
@@ -98,8 +97,7 @@ pub fn unpack_archive(
     interactive: bool,
     backup: bool,
 ) -> Result<usize> {
-    let mut file = std::fs::File::open(input)
-        .map_err(|e| Error::Archive(format!("open: {e}")))?;
+    let mut file = std::fs::File::open(input).map_err(|e| Error::Archive(format!("open: {e}")))?;
 
     let (cipher, index_len) = format::read_header(&mut file)?;
 
@@ -220,8 +218,7 @@ fn extract_tar(
         .entries()
         .map_err(|e| Error::Archive(format!("tar entries: {e}")))?
     {
-        let mut entry =
-            entry_result.map_err(|e| Error::Archive(format!("tar entry: {e}")))?;
+        let mut entry = entry_result.map_err(|e| Error::Archive(format!("tar entry: {e}")))?;
 
         let (path_str, mode) = {
             let path = entry
@@ -241,9 +238,7 @@ fn extract_tar(
         let rel_path = rel_path.to_string();
 
         if rel_path.split(std::path::MAIN_SEPARATOR).any(|c| c == "..") {
-            return Err(Error::Archive(format!(
-                "path traversal denied: {rel_path}"
-            )));
+            return Err(Error::Archive(format!("path traversal denied: {rel_path}")));
         }
 
         let dest = home.join(&rel_path);
@@ -297,9 +292,7 @@ fn extract_tar(
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            if let Err(e) =
-                std::fs::set_permissions(&tmp, std::fs::Permissions::from_mode(mode))
-            {
+            if let Err(e) = std::fs::set_permissions(&tmp, std::fs::Permissions::from_mode(mode)) {
                 eprintln!("ji: warning: could not set permissions on {rel_path}: {e}");
             }
         }
@@ -312,10 +305,8 @@ fn extract_tar(
     Ok(restored)
 }
 
-
 pub fn verify_archive(input: &Path, deep: bool) -> Result<()> {
-    let mut file = std::fs::File::open(input)
-        .map_err(|e| Error::Archive(format!("open: {e}")))?;
+    let mut file = std::fs::File::open(input).map_err(|e| Error::Archive(format!("open: {e}")))?;
 
     let (cipher, index_len) = format::read_header(&mut file)?;
 
@@ -339,7 +330,11 @@ pub fn verify_archive(input: &Path, deep: bool) -> Result<()> {
         println!("deep check: OK");
     }
 
-    println!("HMAC OK    {} files  {}", index.entries.len(), human_size(index.total_size));
+    println!(
+        "HMAC OK    {} files  {}",
+        index.entries.len(),
+        human_size(index.total_size)
+    );
     println!("{}", input.display());
     Ok(())
 }
@@ -409,10 +404,12 @@ fn verify_manifest_checksums(tar_data: &[u8]) -> Result<()> {
             .map_err(|e| Error::Archive(format!("tar entries: {e}")))?
         {
             let mut entry = entry.map_err(|e| Error::Archive(format!("tar entry: {e}")))?;
-            let path = entry.path()
+            let path = entry
+                .path()
                 .map_err(|e| Error::Archive(format!("tar path: {e}")))?;
             if path.to_string_lossy() == ".ji_manifest.toml" {
-                entry.read_to_end(&mut manifest_buf)
+                entry
+                    .read_to_end(&mut manifest_buf)
                     .map_err(|e| Error::Archive(format!("read manifest: {e}")))?;
                 break;
             }
@@ -421,12 +418,15 @@ fn verify_manifest_checksums(tar_data: &[u8]) -> Result<()> {
     };
 
     if manifest_toml.is_empty() {
-        return Err(Error::Archive(".ji_manifest.toml not found in archive".into()));
+        return Err(Error::Archive(
+            ".ji_manifest.toml not found in archive".into(),
+        ));
     }
 
     let manifest: Manifest = toml::from_str(&String::from_utf8_lossy(&manifest_toml))
         .map_err(|e| Error::Archive(format!("manifest parse: {e}")))?;
 
+    let mut mismatches = Vec::new();
     let mut archive = tar::Archive::new(Cursor::new(tar_data));
     for entry in archive
         .entries()
@@ -434,54 +434,64 @@ fn verify_manifest_checksums(tar_data: &[u8]) -> Result<()> {
     {
         let mut entry = entry.map_err(|e| Error::Archive(format!("tar entry: {e}")))?;
         let path_str = {
-            let p = entry.path()
+            let p = entry
+                .path()
                 .map_err(|e| Error::Archive(format!("tar path: {e}")))?;
             p.to_string_lossy().to_string()
         };
 
-        if let Some(rel) = path_str.strip_prefix("files/") {
-            if let Some(expected) = manifest.get(rel) {
-                let mut content = Vec::new();
-                entry
-                    .read_to_end(&mut content)
-                    .map_err(|e| Error::Archive(format!("read: {e}")))?;
-                let actual = manifest::compute_checksum_reader(&content);
-                if actual != expected.checksum {
-                    println!("CHECKSUM MISMATCH: {rel}");
-                    println!("  expected: {}", expected.checksum);
-                    println!("  got:      {actual}");
-                } else {
-                    println!("  OK: {rel}");
-                }
+        if let Some(rel) = path_str.strip_prefix("files/")
+            && let Some(expected) = manifest.get(rel)
+        {
+            let mut content = Vec::new();
+            entry
+                .read_to_end(&mut content)
+                .map_err(|e| Error::Archive(format!("read: {e}")))?;
+            let actual = manifest::compute_checksum_reader(&content);
+            if actual != expected.checksum {
+                mismatches.push((rel.to_string(), expected.checksum.clone(), actual));
+            } else {
+                println!("  OK: {rel}");
             }
         }
+    }
+
+    for (rel, expected, actual) in &mismatches {
+        println!("CHECKSUM MISMATCH: {rel}");
+        println!("  expected: {expected}");
+        println!("  got:      {actual}");
+    }
+
+    if !mismatches.is_empty() {
+        return Err(Error::Archive(format!(
+            "{} checksum mismatch(es) found",
+            mismatches.len()
+        )));
     }
 
     Ok(())
 }
 
 pub fn list_archive_recipients(input: &Path) -> Result<Vec<String>> {
-    let data = std::fs::read(input)
-        .map_err(|e| Error::Archive(format!("read: {e}")))?;
+    let data = std::fs::read(input).map_err(|e| Error::Archive(format!("read: {e}")))?;
 
     let mut cursor = Cursor::new(&data);
     let (cipher, index_len) = format::read_header(&mut cursor)?;
 
-    let payload_start = format::HEADER_SIZE as usize + index_len as usize;
+    let payload_start = format::HEADER_SIZE + index_len as usize;
     let encrypted = &data[payload_start..];
 
     decrypt_with_recipients(cipher, encrypted)
 }
 
 pub fn add_archive_recipient(input: &Path, key: &str) -> Result<()> {
-    let data = std::fs::read(input)
-        .map_err(|e| Error::Archive(format!("read: {e}")))?;
+    let data = std::fs::read(input).map_err(|e| Error::Archive(format!("read: {e}")))?;
 
     let mut cursor = Cursor::new(&data);
     let (cipher, index_len) = format::read_header(&mut cursor)?;
 
     let header_end = format::HEADER_SIZE;
-    let payload_start = header_end as usize + index_len as usize;
+    let payload_start = header_end + index_len as usize;
     let index_buf = &data[header_end..payload_start];
 
     format::read_index(&mut Cursor::new(index_buf))?;
@@ -492,7 +502,9 @@ pub fn add_archive_recipient(input: &Path, key: &str) -> Result<()> {
 
     let mut new_recipients: Vec<String> = existing
         .into_iter()
-        .filter(|r| r.starts_with("X25519 ") || r.starts_with("ssh-rsa ") || r.starts_with("ssh-ed25519 "))
+        .filter(|r| {
+            r.starts_with("X25519 ") || r.starts_with("ssh-rsa ") || r.starts_with("ssh-ed25519 ")
+        })
         .collect();
     new_recipients.push(key.to_string());
 
@@ -502,14 +514,13 @@ pub fn add_archive_recipient(input: &Path, key: &str) -> Result<()> {
 }
 
 pub fn remove_archive_recipient(input: &Path, key: &str) -> Result<()> {
-    let data = std::fs::read(input)
-        .map_err(|e| Error::Archive(format!("read: {e}")))?;
+    let data = std::fs::read(input).map_err(|e| Error::Archive(format!("read: {e}")))?;
 
     let mut cursor = Cursor::new(&data);
     let (cipher, index_len) = format::read_header(&mut cursor)?;
 
     let header_end = format::HEADER_SIZE;
-    let payload_start = header_end as usize + index_len as usize;
+    let payload_start = header_end + index_len as usize;
     let index_buf = &data[header_end..payload_start];
 
     format::read_index(&mut Cursor::new(index_buf))?;
@@ -535,9 +546,7 @@ pub fn remove_archive_recipient(input: &Path, key: &str) -> Result<()> {
 fn decrypt_with_recipients(cipher: CipherType, encrypted: &[u8]) -> Result<Vec<String>> {
     match cipher {
         CipherType::Age => AgeCipher::list_recipients(encrypted),
-        CipherType::Pgp => Err(Error::Crypto(
-            "PGP recipient listing not supported".into(),
-        )),
+        CipherType::Pgp => Err(Error::Crypto("PGP recipient listing not supported".into())),
     }
 }
 
@@ -550,8 +559,8 @@ fn rewrite_payload(
 ) -> Result<()> {
     let tmp = input.with_extension("ji_tmp");
     {
-        let mut file = std::fs::File::create(&tmp)
-            .map_err(|e| Error::Archive(format!("create tmp: {e}")))?;
+        let mut file =
+            std::fs::File::create(&tmp).map_err(|e| Error::Archive(format!("create tmp: {e}")))?;
         file.write_all(&header[..format::HEADER_SIZE])
             .map_err(|e| Error::Archive(format!("write header: {e}")))?;
         file.write_all(index_buf)
@@ -561,7 +570,6 @@ fn rewrite_payload(
         file.sync_all()
             .map_err(|e| Error::Archive(format!("fsync: {e}")))?;
     }
-    std::fs::rename(&tmp, input)
-        .map_err(|e| Error::Archive(format!("rename: {e}")))?;
+    std::fs::rename(&tmp, input).map_err(|e| Error::Archive(format!("rename: {e}")))?;
     Ok(())
 }

@@ -127,23 +127,22 @@ fn load_ssh_identities() -> Result<Vec<Box<dyn age::Identity>>> {
         return Ok(ids);
     }
 
-    for entry in std::fs::read_dir(&ssh_dir)
-        .map_err(|e| Error::Crypto(format!("read ssh dir: {e}")))?
+    for entry in
+        std::fs::read_dir(&ssh_dir).map_err(|e| Error::Crypto(format!("read ssh dir: {e}")))?
     {
         let entry = entry.map_err(|e| Error::Crypto(format!("ssh entry: {e}")))?;
         let path = entry.path();
 
         if !path.is_file()
-            || path.extension().map_or(true, |e| e == "pub")
+            || path.extension().is_none_or(|e| e == "pub")
             || path
                 .file_name()
-                .map_or(true, |n| n == "known_hosts" || n == "authorized_keys")
+                .is_none_or(|n| n == "known_hosts" || n == "authorized_keys")
         {
             continue;
         }
 
-        let key_data =
-            std::fs::read(&path).map_err(|e| Error::Crypto(format!("read ssh: {e}")))?;
+        let key_data = std::fs::read(&path).map_err(|e| Error::Crypto(format!("read ssh: {e}")))?;
         match age::ssh::Identity::from_buffer(Cursor::new(&key_data), None) {
             Ok(ssh_id) => {
                 ids.push(Box::new(ssh_id));
@@ -177,8 +176,7 @@ mod tests {
         assert!(!encrypted.is_empty());
 
         let identity: Identity = priv_key.parse().expect("parse identity");
-        let decryptor =
-            age::Decryptor::new(Cursor::new(&encrypted[..])).expect("decryptor");
+        let decryptor = age::Decryptor::new(Cursor::new(&encrypted[..])).expect("decryptor");
         let mut output = vec![];
         let mut reader = decryptor
             .decrypt(std::iter::once(&identity as &dyn age::Identity))

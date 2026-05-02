@@ -1,4 +1,3 @@
-
 use crate::error::{Error, Result};
 use hmac::{Hmac, KeyInit, Mac};
 use sha2::Sha256;
@@ -183,9 +182,7 @@ pub fn read_index<R: Read>(reader: &mut R) -> Result<PlainIndex> {
 
         const MAX_NAME_LEN: usize = 4096;
         if name_len > MAX_NAME_LEN {
-            return Err(Error::Format(format!(
-                "entry name too long: {name_len}"
-            )));
+            return Err(Error::Format(format!("entry name too long: {name_len}")));
         }
 
         let mut name_bytes = vec![0u8; name_len];

@@ -40,7 +40,8 @@ fn build_tree(paths: Vec<&String>, manifest: &Manifest, verbose: bool) -> Node {
                 if verbose {
                     let home = crate::store::manifest::resolve_home(path);
                     let size = std::fs::metadata(&home).map(|m| m.len()).unwrap_or(0);
-                    let short = manifest.get(path)
+                    let short = manifest
+                        .get(path)
                         .map(|e| e.checksum.chars().take(8).collect::<String>())
                         .unwrap_or_default();
                     current.entry = Some((size, short));
@@ -105,7 +106,9 @@ mod tests {
 
     #[test]
     fn list_json_output() {
-        let _guard = crate::store::path::TEST_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
+        let _guard = crate::store::path::TEST_MUTEX
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let tmp = tempfile::tempdir().unwrap();
         crate::store::path::with_test_home(tmp.path(), || {
             let mut m = Manifest::new();
@@ -117,7 +120,9 @@ mod tests {
 
     #[test]
     fn list_empty() {
-        let _guard = crate::store::path::TEST_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
+        let _guard = crate::store::path::TEST_MUTEX
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let tmp = tempfile::tempdir().unwrap();
         crate::store::path::with_test_home(tmp.path(), || {
             run(false, false).expect("list");
@@ -126,7 +131,9 @@ mod tests {
 
     #[test]
     fn list_tree_output() {
-        let _guard = crate::store::path::TEST_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
+        let _guard = crate::store::path::TEST_MUTEX
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let tmp = tempfile::tempdir().unwrap();
         crate::store::path::with_test_home(tmp.path(), || {
             let mut m = Manifest::new();

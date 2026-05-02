@@ -25,7 +25,7 @@
 - **PGP 可选** — `--features pgp` 启用 sequoia-pgp 后端，兼容 GnuPG
 - **完整性校验** — HMAC-SHA256 保护文件索引，SHA-256 逐文件校验
 - **原子写入** — tmp → fsync → rename，Ctrl+C 中断不留损坏文件
-- **Unix 哲学** — 每个命令做一件事，`--json` 可被脚本消费，成功时静默
+- **Unix 哲学** — 每个命令做一件事，`--json` 可被脚本消费，输出简洁
 - **Shell 补全** — bash / zsh / fish，动态补全
 
 ## Installation

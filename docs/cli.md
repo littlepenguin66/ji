@@ -36,28 +36,30 @@ Paths are relative to `$HOME`. Directories are recursed automatically. `.jiignor
 Remove files from the manifest (does not delete actual files).
 
 ```
-ji rm <PATH>... [--all]
+ji rm <PATH>...
+ji rm --all
 ```
 
 | Option | Description |
 |---|---|
-| `--all` | Remove all tracked files |
+| `--all` | Remove all tracked files (no PATH needed) |
 
 ## ji list
 
 List tracked files and their checksums.
 
 ```
-ji list [--json]
+ji list [--json] [-v|--verbose]
 ```
 
 | Option | Description |
 |---|---|
 | `--json` | Output as JSON |
+| `-v`, `--verbose` | Show file sizes and abbreviated checksums |
 
 ## ji status
 
-Compare local files against manifest checksums.
+Show which tracked files have changed since the last `ji pack` (or `ji add`).
 
 ```
 ji status [-s|--short]
@@ -65,23 +67,23 @@ ji status [-s|--short]
 
 | Option | Description |
 |---|---|
-| `-s`, `--short` | Compact output (path + marker only) |
+| `-s`, `--short` | Compact output for scripting (no "(no changes)" header, no "(no files tracked)" message) |
 
-Status markers: `M` (modified), `-` (deleted), `A` (in manifest but missing on disk), ` ` (unchanged).
+Status markers: `M` (modified), `-` (deleted). Only changed files are shown. Exit code 1 when changes exist, 0 when clean.
 
 ## ji diff
 
-Show unified diff of changed files. Requires a prior `ji pack` to populate the cache.
+Show line-level diff of changed files. Compares current files against the cache populated by the last `ji pack`.
 
 ```
 ji diff [<PATH>]
 ```
 
-Without `<PATH>`, diffs all changed files. Binary files are reported as "binary files differ".
+Without `<PATH>`, diffs all changed files. Binary files are reported as `(binary)`. Markers: `+a` (new file, not in cache), `-d` (deleted, not on disk), `M` (modified).
 
 ## ji pack
 
-Pack tracked files into an encrypted `.ji` archive.
+Pack tracked files into an encrypted `.ji` archive. Updates manifest checksums and the diff cache so `ji status` and `ji diff` reflect the packed state.
 
 ```
 ji pack [-o <PATH>] [--strict] [--verbose]
@@ -90,10 +92,10 @@ ji pack [-o <PATH>] [--strict] [--verbose]
 | Option | Description |
 |---|---|
 | `-o <PATH>` | Output path (default: `~/.local/share/ji/<hostname>.ji`) |
-| `--strict` | Refuse to pack if any checksum mismatches |
-| `--verbose` | Show diff of changed files |
+| `--strict` | Refuse to pack if any checksum mismatches (exit 1) |
+| `--verbose` | List changed files before packing |
 
-Updates the cache in `~/.local/share/ji/cache/` for subsequent `ji diff`.
+Prints a summary line on success: `Packed N file(s) → <path>`.
 
 ## ji unpack
 
@@ -114,17 +116,17 @@ Default behavior: skip files that already exist.
 
 ## ji check
 
-Verify `.ji` file integrity.
+Verify `.ji` file integrity. When no file is given, auto-discovers the most recently modified `.ji` file in `~/.local/share/ji/`.
 
 ```
-ji check <INPUT.ji> [--deep]
+ji check [INPUT.ji] [--deep]
 ```
 
 | Option | Description |
 |---|---|
 | `--deep` | Full verification: decrypt and check per-file checksums |
 
-Fast mode (default) verifies magic bytes, version, cipher type, and HMAC — no decryption required. Deep mode decrypts and verifies every file against the manifest checksums.
+Fast mode (default) verifies magic bytes, version, cipher type, and HMAC — no decryption required. Deep mode decrypts and verifies every file against the archive's internal manifest checksums. Both modes display a tree view of the archive contents.
 
 ## ji doctor
 

@@ -59,7 +59,7 @@ enum Command {
     /// Remove files from the manifest
     Rm {
         /// Paths to untrack
-        #[arg(required = true, value_name = "PATH")]
+        #[arg(value_name = "PATH")]
         paths: Vec<PathBuf>,
 
         /// Remove all tracked files

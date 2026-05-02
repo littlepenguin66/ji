@@ -25,43 +25,42 @@ pub fn run(paths: Vec<PathBuf>, all: bool) -> Result<()> {
 mod tests {
     use super::*;
 
-
     #[test]
     fn rm_tracked_file() {
-        let _guard = crate::store::path::TEST_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
+        let _guard = crate::store::path::TEST_MUTEX
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let tmp = tempfile::tempdir().unwrap();
         crate::store::path::with_test_home(tmp.path(), || {
+            let mut m = Manifest::new();
+            m.add(".zshrc", "abc".into());
+            m.add(".gitconfig", "def".into());
+            m.write(&path::manifest_toml()).unwrap();
 
-        let mut m = Manifest::new();
-        m.add(".zshrc", "abc".into());
-        m.add(".gitconfig", "def".into());
-        m.write(&path::manifest_toml()).unwrap();
+            run(vec![PathBuf::from(".zshrc")], false).expect("rm");
 
-        run(vec![PathBuf::from(".zshrc")], false).expect("rm");
-
-        let manifest = Manifest::read(&path::manifest_toml()).unwrap();
-        assert!(!manifest.is_tracked(".zshrc"));
-        assert!(manifest.is_tracked(".gitconfig"));
-
+            let manifest = Manifest::read(&path::manifest_toml()).unwrap();
+            assert!(!manifest.is_tracked(".zshrc"));
+            assert!(manifest.is_tracked(".gitconfig"));
         });
     }
 
     #[test]
     fn rm_all() {
-        let _guard = crate::store::path::TEST_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
+        let _guard = crate::store::path::TEST_MUTEX
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let tmp = tempfile::tempdir().unwrap();
         crate::store::path::with_test_home(tmp.path(), || {
+            let mut m = Manifest::new();
+            m.add(".zshrc", "abc".into());
+            m.add(".gitconfig", "def".into());
+            m.write(&path::manifest_toml()).unwrap();
 
-        let mut m = Manifest::new();
-        m.add(".zshrc", "abc".into());
-        m.add(".gitconfig", "def".into());
-        m.write(&path::manifest_toml()).unwrap();
+            run(vec![], true).expect("rm --all");
 
-        run(vec![], true).expect("rm --all");
-
-        let manifest = Manifest::read(&path::manifest_toml()).unwrap();
-        assert!(manifest.files.is_empty());
-
+            let manifest = Manifest::read(&path::manifest_toml()).unwrap();
+            assert!(manifest.files.is_empty());
         });
     }
 }

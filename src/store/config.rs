@@ -68,8 +68,7 @@ impl Config {
 
     pub fn write(&self, path: &Path) -> Result<()> {
         if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent)
-                .map_err(|e| Error::Config(format!("mkdir: {e}")))?;
+            std::fs::create_dir_all(parent).map_err(|e| Error::Config(format!("mkdir: {e}")))?;
         }
         let content = toml::to_string_pretty(self)?;
         let tmp = path.with_extension("tmp");

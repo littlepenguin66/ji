@@ -16,10 +16,10 @@ pub fn run(path_filter: Option<PathBuf>) -> Result<()> {
     let mut has_diff = false;
 
     for rel_path in manifest.list_paths() {
-        if let Some(ref filter) = path_filter {
-            if *rel_path != filter.to_string_lossy() {
-                continue;
-            }
+        if let Some(ref filter) = path_filter
+            && *rel_path != filter.to_string_lossy()
+        {
+            continue;
         }
 
         let abs = manifest::resolve_home(rel_path);
@@ -46,41 +46,38 @@ pub fn run(path_filter: Option<PathBuf>) -> Result<()> {
         let current = std::fs::read(&abs).ok();
         let cached = std::fs::read(&cache_path).ok();
 
-        match (current, cached) {
-            (Some(curr), Some(cached)) => {
-                if curr == cached {
-                    continue;
-                }
+        if let (Some(curr), Some(cached)) = (current, cached) {
+            if curr == cached {
+                continue;
+            }
 
-                if is_binary(&curr) || is_binary(&cached) {
-                    println!("  M  {rel_path}  (binary)");
-                    has_diff = true;
-                    continue;
-                }
+            if is_binary(&curr) || is_binary(&cached) {
+                println!("  M  {rel_path}  (binary)");
+                has_diff = true;
+                continue;
+            }
 
-                let old = String::from_utf8_lossy(&cached).to_string();
-                let new = String::from_utf8_lossy(&curr).to_string();
-                let diff = TextDiff::from_lines(&old, &new);
+            let old = String::from_utf8_lossy(&cached).to_string();
+            let new = String::from_utf8_lossy(&curr).to_string();
+            let diff = TextDiff::from_lines(&old, &new);
 
-                println!("  M  {rel_path}");
-                for change in diff.iter_all_changes() {
-                    match change.tag() {
-                        ChangeTag::Equal => continue,
-                        ChangeTag::Delete => {
-                            for line in change.value().lines() {
-                                println!("-{line}");
-                            }
+            println!("  M  {rel_path}");
+            for change in diff.iter_all_changes() {
+                match change.tag() {
+                    ChangeTag::Equal => continue,
+                    ChangeTag::Delete => {
+                        for line in change.value().lines() {
+                            println!("-{line}");
                         }
-                        ChangeTag::Insert => {
-                            for line in change.value().lines() {
-                                println!("+{line}");
-                            }
+                    }
+                    ChangeTag::Insert => {
+                        for line in change.value().lines() {
+                            println!("+{line}");
                         }
                     }
                 }
-                has_diff = true;
             }
-            _ => {}
+            has_diff = true;
         }
     }
 

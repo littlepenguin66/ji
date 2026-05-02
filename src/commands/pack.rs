@@ -19,6 +19,7 @@ pub fn run(output: Option<PathBuf>, strict: bool, verbose: bool) -> Result<()> {
         return Ok(());
     }
 
+    // Run strict/verbose checks against the stored manifest (before update).
     if strict || verbose {
         let statuses = crate::store::manifest::compute_status(&manifest)?;
         let mismatches: Vec<_> = statuses
@@ -31,14 +32,8 @@ pub fn run(output: Option<PathBuf>, strict: bool, verbose: bool) -> Result<()> {
                 let first = &mismatches[0];
                 return Err(crate::error::Error::ChecksumMismatch {
                     path: PathBuf::from(&first.path),
-                    expected: first
-                        .stored_checksum
-                        .clone()
-                        .unwrap_or_else(|| "-".into()),
-                    got: first
-                        .current_checksum
-                        .clone()
-                        .unwrap_or_else(|| "-".into()),
+                    expected: first.stored_checksum.clone().unwrap_or_else(|| "-".into()),
+                    got: first.current_checksum.clone().unwrap_or_else(|| "-".into()),
                 });
             }
             if verbose {
@@ -50,6 +45,18 @@ pub fn run(output: Option<PathBuf>, strict: bool, verbose: bool) -> Result<()> {
         }
     }
 
+    // Refresh checksums from disk so the .ji_manifest.toml inside the archive
+    // matches the actual file contents being packed.
+    let mut packed = manifest.clone();
+    for rel_path in manifest.list_paths() {
+        let abs = crate::store::manifest::resolve_home(rel_path);
+        if abs.exists()
+            && let Ok(checksum) = crate::store::manifest::compute_checksum(&abs)
+        {
+            packed.add(rel_path, checksum);
+        }
+    }
+
     let output_path = output.unwrap_or_else(|| {
         let host = hostname::get()
             .map(|h| h.to_string_lossy().to_string())
@@ -57,24 +64,23 @@ pub fn run(output: Option<PathBuf>, strict: bool, verbose: bool) -> Result<()> {
         path::default_output(&host)
     });
 
-    let cipher = crate::archive::format::CipherType::from_config_type(
-        &config.encryption.encryption_type,
-    )?;
-    archive::pack_archive(
-        &output_path,
-        &manifest,
-        &config.encryption.recipients,
-        cipher,
-    )?;
+    let cipher =
+        crate::archive::format::CipherType::from_config_type(&config.encryption.encryption_type)?;
+    archive::pack_archive(&output_path, &packed, &config.encryption.recipients, cipher)?;
 
-    update_cache(&manifest).ok();
+    // Persist updated checksums so status/diff reflect the packed state.
+    packed.write(&path::manifest_toml())?;
+    update_cache(&packed).ok();
+
+    let count = packed.files.len();
+    println!("Packed {count} file(s) → {}", output_path.display());
 
     Ok(())
 }
 
 fn update_cache(manifest: &Manifest) -> Result<()> {
     let cache_dir = path::cache_dir();
-    std::fs::create_dir_all(&cache_dir).map_err(|e| crate::error::Error::Io(e))?;
+    std::fs::create_dir_all(&cache_dir).map_err(crate::error::Error::Io)?;
 
     #[cfg(unix)]
     {
@@ -107,67 +113,68 @@ fn update_cache(manifest: &Manifest) -> Result<()> {
 mod tests {
     use super::*;
 
-
     #[test]
     fn pack_empty_manifest_warns() {
-        let _guard = crate::store::path::TEST_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
+        let _guard = crate::store::path::TEST_MUTEX
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let tmp = tempfile::tempdir().unwrap();
         crate::store::path::with_test_home(tmp.path(), || {
+            let cfg = Config::new(vec!["age1test".into()]);
+            cfg.write(&path::config_toml()).unwrap();
 
-        let cfg = Config::new(vec!["age1test".into()]);
-        cfg.write(&path::config_toml()).unwrap();
-
-        run(None, false, false).expect("pack empty");
-
+            run(None, false, false).expect("pack empty");
         });
     }
 
     #[test]
     fn pack_roundtrip() {
-        let _guard = crate::store::path::TEST_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
+        let _guard = crate::store::path::TEST_MUTEX
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let tmp = tempfile::tempdir().unwrap();
         crate::store::path::with_test_home(tmp.path(), || {
+            let (priv_key, pub_key) = crate::crypto::age::AgeCipher::generate_identity();
 
-        let (priv_key, pub_key) = crate::crypto::age::AgeCipher::generate_identity();
+            std::fs::create_dir_all(path::data_dir()).unwrap();
+            std::fs::write(path::identity_path(), &priv_key).unwrap();
 
-        std::fs::create_dir_all(path::data_dir()).unwrap();
-        std::fs::write(path::identity_path(), &priv_key).unwrap();
+            let cfg = Config::new(vec![pub_key]);
+            cfg.write(&path::config_toml()).unwrap();
 
-        let cfg = Config::new(vec![pub_key]);
-        cfg.write(&path::config_toml()).unwrap();
+            let file_path = tmp.path().join(".zshrc");
+            std::fs::write(&file_path, "export EDITOR=nvim\n").unwrap();
 
-        let file_path = tmp.path().join(".zshrc");
-        std::fs::write(&file_path, "export EDITOR=nvim\n").unwrap();
+            let checksum = crate::store::manifest::compute_checksum(&file_path).unwrap();
+            let mut manifest = Manifest::new();
+            manifest.add(".zshrc", checksum);
+            manifest.write(&path::manifest_toml()).unwrap();
 
-        let checksum = crate::store::manifest::compute_checksum(&file_path).unwrap();
-        let mut manifest = Manifest::new();
-        manifest.add(".zshrc", checksum);
-        manifest.write(&path::manifest_toml()).unwrap();
+            let output = tmp.path().join("test.ji");
+            run(Some(output.clone()), false, false).expect("pack");
 
-        let output = tmp.path().join("test.ji");
-        run(Some(output.clone()), false, false).expect("pack");
+            assert!(output.exists());
+            assert!(output.metadata().unwrap().len() > 0);
 
-        assert!(output.exists());
-        assert!(output.metadata().unwrap().len() > 0);
+            let restore_dir = tmp.path().join("restore");
+            std::fs::create_dir_all(restore_dir.join(".local").join("share").join("ji")).unwrap();
+            std::fs::copy(
+                path::identity_path(),
+                restore_dir.join(".local/share/ji/ji.identity.age"),
+            )
+            .unwrap();
+            unsafe { std::env::set_var("JI_TEST_HOME", restore_dir.as_os_str()) };
 
-        let restore_dir = tmp.path().join("restore");
-        std::fs::create_dir_all(restore_dir.join(".local").join("share").join("ji")).unwrap();
-        std::fs::copy(
-            path::identity_path(),
-            restore_dir.join(".local/share/ji/ji.identity.age"),
-        ).unwrap();
-        unsafe { std::env::set_var("JI_TEST_HOME", restore_dir.as_os_str()) };
+            let restored =
+                crate::archive::unpack_archive(&output, false, true, false, false).expect("unpack");
+            assert_eq!(restored, 1);
 
-        let restored = crate::archive::unpack_archive(&output, false, true, false, false)
-            .expect("unpack");
-        assert_eq!(restored, 1);
+            let restored_file = restore_dir.join(".zshrc");
+            assert!(restored_file.exists());
+            let content = std::fs::read_to_string(&restored_file).unwrap();
+            assert_eq!(content, "export EDITOR=nvim\n");
 
-        let restored_file = restore_dir.join(".zshrc");
-        assert!(restored_file.exists());
-        let content = std::fs::read_to_string(&restored_file).unwrap();
-        assert_eq!(content, "export EDITOR=nvim\n");
-
-        unsafe { std::env::set_var("JI_TEST_HOME", tmp.path().as_os_str()) };
+            unsafe { std::env::set_var("JI_TEST_HOME", tmp.path().as_os_str()) };
         });
     }
 }
