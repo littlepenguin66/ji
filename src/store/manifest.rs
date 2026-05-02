@@ -129,23 +129,14 @@ pub fn compute_checksum_reader(data: &[u8]) -> String {
     hex::encode(hasher.finalize())
 }
 
-/// Returns the effective HOME directory (respects JI_TEST_HOME for testing).
-fn home_dir() -> PathBuf {
-    if let Ok(test_home) = std::env::var("JI_TEST_HOME") {
-        PathBuf::from(test_home)
-    } else {
-        dirs::home_dir().expect("could not determine HOME")
-    }
-}
-
 /// Resolve a path relative to $HOME. Returns the absolute path.
 pub fn resolve_home(relative: &str) -> PathBuf {
-    home_dir().join(relative.trim_start_matches('/'))
+    crate::store::path::home_dir().join(relative.trim_start_matches('/'))
 }
 
 /// Get the relative path from $HOME.
 pub fn relativize(abs: &Path) -> Result<String> {
-    let home = home_dir();
+    let home = crate::store::path::home_dir();
     abs.strip_prefix(&home)
         .map(|p| p.to_string_lossy().to_string())
         .map_err(|_| Error::Manifest(format!("path {abs:?} is not under HOME")))

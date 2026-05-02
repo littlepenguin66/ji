@@ -45,3 +45,79 @@ fn match_simple_pattern(pattern: &str, path: &str) -> bool {
     }
     false
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+
+    #[test]
+    fn default_excludes_ssh() {
+        let _guard = path::TEST_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
+        let tmp = tempfile::tempdir().unwrap();
+        crate::store::path::with_test_home(tmp.path(), || {
+
+        assert!(is_ignored(".ssh/config"));
+        assert!(is_ignored(".ssh"));
+        assert!(!is_ignored(".zshrc"));
+
+        });
+    }
+
+    #[test]
+    fn default_excludes_ds_store() {
+        let _guard = path::TEST_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
+        let tmp = tempfile::tempdir().unwrap();
+        crate::store::path::with_test_home(tmp.path(), || {
+
+        assert!(is_ignored(".DS_Store"));
+        assert!(is_ignored("some/dir/.DS_Store"));
+        assert!(!is_ignored(".gitconfig"));
+
+        });
+    }
+
+    #[test]
+    fn default_excludes_node_modules() {
+        let _guard = path::TEST_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
+        let tmp = tempfile::tempdir().unwrap();
+        crate::store::path::with_test_home(tmp.path(), || {
+
+        assert!(is_ignored("node_modules/react/index.js"));
+        assert!(is_ignored("node_modules"));
+        assert!(!is_ignored("src/node_modules_helper"));
+
+        });
+    }
+
+    #[test]
+    fn jiignore_file_patterns() {
+        let _guard = path::TEST_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
+        let tmp = tempfile::tempdir().unwrap();
+        crate::store::path::with_test_home(tmp.path(), || {
+
+        std::fs::create_dir_all(path::config_dir()).unwrap();
+        std::fs::write(path::jiignore(), "*.zwc\n*.tmp\n").unwrap();
+
+        assert!(is_ignored("test.zwc"));
+        assert!(is_ignored("backup.tmp"));
+        assert!(!is_ignored("test.conf"));
+
+        });
+    }
+
+    #[test]
+    fn jiignore_comments_and_blanks_ignored() {
+        let _guard = path::TEST_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
+        let tmp = tempfile::tempdir().unwrap();
+        crate::store::path::with_test_home(tmp.path(), || {
+
+        std::fs::create_dir_all(path::config_dir()).unwrap();
+        std::fs::write(path::jiignore(), "# comment\n\n*.secret\n").unwrap();
+
+        assert!(is_ignored("my.secret"));
+        assert!(!is_ignored("# comment"));
+
+        });
+    }
+}

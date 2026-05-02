@@ -279,7 +279,7 @@ mod tests {
 
     #[test]
     fn invalid_magic_rejected() {
-        let mut buf = vec![0u8; HEADER_SIZE];
+        let buf = vec![0u8; HEADER_SIZE];
         let err = read_header(&mut Cursor::new(&buf)).unwrap_err();
         assert!(matches!(err, Error::InvalidMagic));
     }

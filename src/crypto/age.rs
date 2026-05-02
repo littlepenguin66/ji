@@ -108,9 +108,7 @@ fn load_identities() -> Result<Vec<Box<dyn age::Identity>>> {
 
 fn load_ssh_identities() -> Result<Vec<Box<dyn age::Identity>>> {
     let mut ids = Vec::new();
-    let ssh_dir = dirs::home_dir()
-        .ok_or_else(|| Error::Crypto("no home dir".into()))?
-        .join(".ssh");
+    let ssh_dir = crate::store::path::home_dir().join(".ssh");
 
     if !ssh_dir.exists() {
         return Ok(ids);

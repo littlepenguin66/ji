@@ -339,3 +339,217 @@ fn extract_tar(
 
     Ok(restored)
 }
+
+// ── High-level archive inspection & mutation ──
+
+/// Verify a .ji file. Fast mode checks header + index HMAC. Deep mode decrypts
+/// and verifies per-file checksums. Prints human-readable results.
+pub fn verify_archive(input: &Path, deep: bool) -> Result<()> {
+    let mut file = std::fs::File::open(input)
+        .map_err(|e| Error::Archive(format!("open: {e}")))?;
+
+    let (cipher, index_len) = format::read_header(&mut file)?;
+    let cipher_name = match cipher {
+        CipherType::Age => "age",
+        CipherType::Pgp => "pgp",
+    };
+    println!("cipher: {cipher_name}");
+
+    let mut index_buf = vec![0u8; index_len as usize];
+    file.read_exact(&mut index_buf)
+        .map_err(|e| Error::Archive(format!("read index: {e}")))?;
+    let index = format::read_index(&mut std::io::Cursor::new(&index_buf))?;
+
+    println!("files:");
+    for entry in &index.entries {
+        println!("  {} ({} bytes)", entry.name, entry.size);
+    }
+    println!("total: {} bytes", index.total_size);
+    println!("HMAC: OK");
+
+    if deep {
+        let mut encrypted = Vec::new();
+        file.read_to_end(&mut encrypted)
+            .map_err(|e| Error::Archive(format!("read payload: {e}")))?;
+
+        let decrypted = decrypt_with(cipher, &encrypted)?;
+        let tar_data = zstd::decode_all(&decrypted[..])
+            .map_err(|e| Error::Archive(format!("decompress: {e}")))?;
+
+        verify_manifest_checksums(&tar_data)?;
+        println!("deep check: OK");
+    }
+
+    println!("ji: {} checksum OK", input.display());
+    Ok(())
+}
+
+fn verify_manifest_checksums(tar_data: &[u8]) -> Result<()> {
+    let mut archive = tar::Archive::new(Cursor::new(tar_data));
+
+    let manifest_toml = {
+        let mut manifest_buf = Vec::new();
+        for entry in archive
+            .entries()
+            .map_err(|e| Error::Archive(format!("tar entries: {e}")))?
+        {
+            let mut entry = entry.map_err(|e| Error::Archive(format!("tar entry: {e}")))?;
+            let path = entry.path()
+                .map_err(|e| Error::Archive(format!("tar path: {e}")))?;
+            if path.to_string_lossy() == ".ji_manifest.toml" {
+                entry.read_to_end(&mut manifest_buf)
+                    .map_err(|e| Error::Archive(format!("read manifest: {e}")))?;
+                break;
+            }
+        }
+        manifest_buf
+    };
+
+    if manifest_toml.is_empty() {
+        return Err(Error::Archive(".ji_manifest.toml not found in archive".into()));
+    }
+
+    let manifest: Manifest = toml::from_str(&String::from_utf8_lossy(&manifest_toml))
+        .map_err(|e| Error::Archive(format!("manifest parse: {e}")))?;
+
+    let mut archive = tar::Archive::new(Cursor::new(tar_data));
+    for entry in archive
+        .entries()
+        .map_err(|e| Error::Archive(format!("tar entries: {e}")))?
+    {
+        let mut entry = entry.map_err(|e| Error::Archive(format!("tar entry: {e}")))?;
+        let path_str = {
+            let p = entry.path()
+                .map_err(|e| Error::Archive(format!("tar path: {e}")))?;
+            p.to_string_lossy().to_string()
+        };
+
+        if let Some(rel) = path_str.strip_prefix("files/") {
+            if let Some(expected) = manifest.get(rel) {
+                let mut content = Vec::new();
+                entry
+                    .read_to_end(&mut content)
+                    .map_err(|e| Error::Archive(format!("read: {e}")))?;
+                let actual = manifest::compute_checksum_reader(&content);
+                if actual != expected.checksum {
+                    println!("CHECKSUM MISMATCH: {rel}");
+                    println!("  expected: {}", expected.checksum);
+                    println!("  got:      {actual}");
+                } else {
+                    println!("  OK: {rel}");
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// List recipients of a .ji file (reads only the encrypted payload header, no decryption).
+pub fn list_archive_recipients(input: &Path) -> Result<Vec<String>> {
+    let data = std::fs::read(input)
+        .map_err(|e| Error::Archive(format!("read: {e}")))?;
+
+    let mut cursor = Cursor::new(&data);
+    let (cipher, index_len) = format::read_header(&mut cursor)?;
+
+    let payload_start = format::HEADER_SIZE as usize + index_len as usize;
+    let encrypted = &data[payload_start..];
+
+    decrypt_with_recipients(cipher, encrypted)
+}
+
+/// Add a recipient to a .ji file atomically.
+pub fn add_archive_recipient(input: &Path, key: &str) -> Result<()> {
+    let data = std::fs::read(input)
+        .map_err(|e| Error::Archive(format!("read: {e}")))?;
+
+    let mut cursor = Cursor::new(&data);
+    let (cipher, index_len) = format::read_header(&mut cursor)?;
+
+    let header_end = format::HEADER_SIZE;
+    let payload_start = header_end as usize + index_len as usize;
+    let index_buf = &data[header_end..payload_start];
+
+    format::read_index(&mut Cursor::new(index_buf))?;
+
+    let encrypted = &data[payload_start..];
+    let existing = decrypt_with_recipients(cipher, encrypted)?;
+    let decrypted = decrypt_with(cipher, encrypted)?;
+
+    let mut new_recipients: Vec<String> = existing
+        .into_iter()
+        .filter(|r| r.starts_with("X25519 "))
+        .collect();
+    new_recipients.push(key.to_string());
+
+    let re_encrypted = encrypt_with(cipher, &decrypted, &new_recipients)?;
+
+    rewrite_payload(input, &data, cipher, index_buf, &re_encrypted)
+}
+
+/// Remove a recipient from a .ji file atomically.
+pub fn remove_archive_recipient(input: &Path, key: &str) -> Result<()> {
+    let data = std::fs::read(input)
+        .map_err(|e| Error::Archive(format!("read: {e}")))?;
+
+    let mut cursor = Cursor::new(&data);
+    let (cipher, index_len) = format::read_header(&mut cursor)?;
+
+    let header_end = format::HEADER_SIZE;
+    let payload_start = header_end as usize + index_len as usize;
+    let index_buf = &data[header_end..payload_start];
+
+    format::read_index(&mut Cursor::new(index_buf))?;
+
+    let encrypted = &data[payload_start..];
+    let existing = decrypt_with_recipients(cipher, encrypted)?;
+    let decrypted = decrypt_with(cipher, encrypted)?;
+
+    let new_recipients: Vec<String> = existing
+        .into_iter()
+        .filter(|r| r.starts_with("X25519 ") && !r.contains(key))
+        .collect();
+
+    if new_recipients.is_empty() {
+        return Err(Error::Crypto("cannot remove last recipient".into()));
+    }
+
+    let re_encrypted = encrypt_with(cipher, &decrypted, &new_recipients)?;
+
+    rewrite_payload(input, &data, cipher, index_buf, &re_encrypted)
+}
+
+fn decrypt_with_recipients(cipher: CipherType, encrypted: &[u8]) -> Result<Vec<String>> {
+    match cipher {
+        CipherType::Age => AgeCipher::list_recipients(encrypted),
+        CipherType::Pgp => Err(Error::Crypto(
+            "PGP recipient listing not supported".into(),
+        )),
+    }
+}
+
+fn rewrite_payload(
+    input: &Path,
+    header: &[u8],
+    _cipher: CipherType,
+    index_buf: &[u8],
+    new_payload: &[u8],
+) -> Result<()> {
+    let tmp = input.with_extension("ji_tmp");
+    {
+        let mut file = std::fs::File::create(&tmp)
+            .map_err(|e| Error::Archive(format!("create tmp: {e}")))?;
+        file.write_all(&header[..format::HEADER_SIZE])
+            .map_err(|e| Error::Archive(format!("write header: {e}")))?;
+        file.write_all(index_buf)
+            .map_err(|e| Error::Archive(format!("write index: {e}")))?;
+        file.write_all(new_payload)
+            .map_err(|e| Error::Archive(format!("write payload: {e}")))?;
+        file.sync_all()
+            .map_err(|e| Error::Archive(format!("fsync: {e}")))?;
+    }
+    std::fs::rename(&tmp, input)
+        .map_err(|e| Error::Archive(format!("rename: {e}")))?;
+    Ok(())
+}

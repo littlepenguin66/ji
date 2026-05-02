@@ -1,6 +1,4 @@
 use crate::error::Result;
-use crate::remote::webdav::WebdavRemote;
-use crate::remote::Remote;
 use crate::store::config::{Config, RemoteConfig};
 use crate::store::path;
 
@@ -76,28 +74,7 @@ pub fn run_test(name: String) -> Result<()> {
         .find(|r| r.name == name)
         .ok_or_else(|| crate::error::Error::Remote(format!("remote '{name}' not found")))?;
 
-    match r.remote_type.as_str() {
-        "webdav" => {
-            let remote = WebdavRemote {
-                url: r.url.clone(),
-                user: r.user.clone(),
-            };
-            remote.test()
-        }
-        "ssh" => {
-            let (host, path) = crate::remote::parse_ssh_url(&r.url)?;
-            let remote = crate::remote::ssh::SshRemote {
-                host,
-                user: r.user.clone(),
-                path,
-            };
-            remote.test()
-        }
-        _ => Err(crate::error::Error::Remote(format!(
-            "unsupported remote type: {}",
-            r.remote_type
-        ))),
-    }
+    r.build()?.test()
 }
 
 pub fn run_files(name: String) -> Result<()> {
@@ -108,28 +85,7 @@ pub fn run_files(name: String) -> Result<()> {
         .find(|r| r.name == name)
         .ok_or_else(|| crate::error::Error::Remote(format!("remote '{name}' not found")))?;
 
-    let entries = match r.remote_type.as_str() {
-        "webdav" => {
-            let remote = WebdavRemote {
-                url: r.url.clone(),
-                user: r.user.clone(),
-            };
-            remote.list()
-        }
-        "ssh" => {
-            let (host, path) = crate::remote::parse_ssh_url(&r.url)?;
-            let remote = crate::remote::ssh::SshRemote {
-                host,
-                user: r.user.clone(),
-                path,
-            };
-            remote.list()
-        }
-        _ => Err(crate::error::Error::Remote(format!(
-            "unsupported remote type: {}",
-            r.remote_type
-        ))),
-    }?;
+    let entries = r.build()?.list()?;
 
     if entries.is_empty() {
         println!("(no files)");
@@ -155,26 +111,5 @@ pub fn run_delete(name: String, file: &str) -> Result<()> {
         .find(|r| r.name == name)
         .ok_or_else(|| crate::error::Error::Remote(format!("remote '{name}' not found")))?;
 
-    match r.remote_type.as_str() {
-        "webdav" => {
-            let remote = WebdavRemote {
-                url: r.url.clone(),
-                user: r.user.clone(),
-            };
-            remote.delete(file)
-        }
-        "ssh" => {
-            let (host, path) = crate::remote::parse_ssh_url(&r.url)?;
-            let remote = crate::remote::ssh::SshRemote {
-                host,
-                user: r.user.clone(),
-                path,
-            };
-            remote.delete(file)
-        }
-        _ => Err(crate::error::Error::Remote(format!(
-            "unsupported remote type: {}",
-            r.remote_type
-        ))),
-    }
+    r.build()?.delete(file)
 }

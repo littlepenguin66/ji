@@ -26,6 +26,30 @@ pub struct RemoteConfig {
     pub user: Option<String>,
 }
 
+impl RemoteConfig {
+    /// Build a `Box<dyn Remote>` from this config entry.
+    pub fn build(&self) -> Result<Box<dyn crate::remote::Remote>> {
+        match self.remote_type.as_str() {
+            "webdav" => Ok(Box::new(crate::remote::webdav::WebdavRemote {
+                url: self.url.clone(),
+                user: self.user.clone(),
+            })),
+            "ssh" => {
+                let (host, path) = crate::remote::parse_ssh_url(&self.url)?;
+                Ok(Box::new(crate::remote::ssh::SshRemote {
+                    host,
+                    user: self.user.clone(),
+                    path,
+                }))
+            }
+            _ => Err(crate::error::Error::Remote(format!(
+                "unsupported remote type: {}",
+                self.remote_type
+            ))),
+        }
+    }
+}
+
 impl Config {
     pub fn new(recipients: Vec<String>) -> Self {
         Config {

@@ -166,6 +166,17 @@ enum Command {
     #[command(subcommand)]
     Recipient(RecipientCommand),
 
+    /// Diagnose configuration, keys, and connectivity
+    Doctor {
+        /// Full check including remote connectivity and archive scan
+        #[arg(long = "full")]
+        full: bool,
+
+        /// Output in JSON format
+        #[arg(long = "json")]
+        json: bool,
+    },
+
     /// Generate shell completion script
     Completion {
         /// Target shell (bash, zsh, fish)
@@ -330,6 +341,7 @@ fn run(cli: Cli) -> error::Result<()> {
             RecipientCommand::Add { key, input } => commands::recipient::run_add(key, input),
             RecipientCommand::Remove { key, input } => commands::recipient::run_remove(key, input),
         },
+        Doctor { full, json } => commands::doctor::run(full, json),
         Completion { shell } => commands::completion::run(shell),
     }
 }

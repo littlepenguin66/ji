@@ -67,7 +67,7 @@ fn add_directory(
     include: &[String],
     exclude: &[String],
 ) -> Result<()> {
-    let home = dirs::home_dir().expect("could not determine HOME");
+    let home = crate::store::path::home_dir();
 
     for entry in walkdir::WalkDir::new(abs)
         .follow_links(false)
@@ -120,19 +120,12 @@ fn should_include(rel: &str, include: &[String], exclude: &[String]) -> bool {
 mod tests {
     use super::*;
 
-    fn set_test_home(path: &std::path::Path) {
-        unsafe { std::env::set_var("JI_TEST_HOME", path.as_os_str()) };
-    }
-
-    fn unset_test_home() {
-        unsafe { std::env::remove_var("JI_TEST_HOME") };
-    }
 
     #[test]
     fn add_single_file() {
         let _guard = crate::store::path::TEST_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
         let tmp = tempfile::tempdir().unwrap();
-        set_test_home(tmp.path());
+        crate::store::path::with_test_home(tmp.path(), || {
 
         // Create a test file under fake home
         let file_path = tmp.path().join(".zshrc");
@@ -144,20 +137,20 @@ mod tests {
         let manifest = Manifest::read(&path::manifest_toml()).unwrap();
         assert!(manifest.is_tracked(".zshrc"));
 
-        unset_test_home();
+        });
     }
 
     #[test]
     fn add_nonexistent_warns() {
         let _guard = crate::store::path::TEST_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
         let tmp = tempfile::tempdir().unwrap();
-        set_test_home(tmp.path());
+        crate::store::path::with_test_home(tmp.path(), || {
 
         run(vec![PathBuf::from(".nonexistent")], vec![], vec![]).expect("add");
 
         let manifest = Manifest::read(&path::manifest_toml()).unwrap();
         assert!(manifest.files.is_empty());
 
-        unset_test_home();
+        });
     }
 }

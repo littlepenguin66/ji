@@ -29,96 +29,84 @@ Think of it as a lightweight chezmoi: source files → encrypted archive → sin
 ```bash
 # Install
 cargo install --path .
+```
 
-# Initialize
-ji init                        # interactive age keypair generation
-ji init -a                     # skip prompts, auto-generate
-ji init --key ~/.ssh/id_ed25519.pub  # use existing SSH key
+### First time: set up and pack
 
-# Add files
+```bash
+# 1. Initialize — creates config + generates age keypair
+ji init
+
+# 2. Add the dotfiles you want to carry
 ji add .zshrc .gitconfig .config/nvim/
 ji add **/* --exclude "*.zwc"
 
-# Pack
-ji pack                        # → ~/.local/share/ji/<hostname>.ji
+# 3. Check what's tracked
+ji list
+ji status
 
-# Verify
-ji check mbp.ji                # fast: list files + verify HMAC
-ji check mbp.ji --deep         # full: decrypt and verify all checksums
-
-# Restore
-ji unpack mbp.ji               # skip existing files
-ji unpack mbp.ji --backup      # backup existing files as .bak first
-ji unpack mbp.ji --dry-run     # preview without writing
+# 4. Pack into an encrypted .ji file
+ji pack
+# → ~/.local/share/ji/mbp.ji
 ```
 
-## Usage
-
-### Local
-
-| Command | Description |
-|---|---|
-| `ji init [--key <K>]... [-a] [--force]` | Initialize config and generate age keypair |
-| `ji add <PATH>... [--include <P>] [--exclude <P>]` | Add files to tracking manifest |
-| `ji rm <PATH>... [--all]` | Remove files from manifest |
-| `ji list [--json]` | List tracked files and checksums |
-| `ji status [-s]` | Show file change status (M=modified, -=deleted, A=missing) |
-| `ji diff [<PATH>]` | Show unified diff (requires prior pack for cache) |
-| `ji pack [-o <PATH>] [--strict] [--verbose]` | Pack into encrypted .ji file |
-| `ji unpack <INPUT> [--force\|--backup\|--interactive]` | Decrypt and restore |
-| `ji check <INPUT> [--deep]` | Verify .ji integrity |
-
-### Remote
-
-| Command | Description |
-|---|---|
-| `ji remote add <NAME> --type webdav --url <URL> [--user <U>]` | Add remote endpoint |
-| `ji remote remove <NAME>` | Remove endpoint |
-| `ji remote list [--json]` | List all endpoints |
-| `ji remote test <NAME>` | Test connectivity |
-| `ji remote files <NAME>` | List .ji files on remote |
-| `ji remote delete <NAME> <FILE>` | Delete .ji from remote |
-| `ji push <NAME> <INPUT>` | Push .ji to remote |
-| `ji pull <NAME>` | Pull .ji from remote |
-| `ji sync <NAME>` | Bidirectional sync (pack+push if local changes, else pull) |
+### Switch to a new machine
 
 ```bash
-# Add a WebDAV endpoint
-ji remote add nas --type webdav --url https://nas.local/ji/ --user jrz
+# 1. Bring your .ji file over (USB, scp, cloud...)
+# 2. Initialize ji on the new machine
+ji init --key ~/.ssh/id_ed25519.pub
 
-# Push
+# 3. Preview what will be restored
+ji unpack mbp.ji --dry-run
+
+# 4. Restore
+ji unpack mbp.ji --backup
+
+# 5. Check everything looks right
+ji status
+```
+
+### Share access between your devices
+
+```bash
+# Desktop packs, laptop wants to decrypt too
+ji recipient add --key ~/.ssh/laptop.pub mbp.ji
+# Now both machines can decrypt mbp.ji with their own key
+```
+
+### Sync with a remote (WebDAV NAS)
+
+```bash
+# One-time setup
+ji remote add nas --type webdav --url https://nas.local/ji/ --user jrz
+ji remote test nas
+
+# Push to remote
 ji pack && ji push nas mbp.ji
 
-# Pull on a new machine
-ji pull nas && ji unpack mbp.ji
+# Pull on another machine
+ji pull nas
+ji unpack mbp.ji
 
-# Or just sync
+# Or just sync (detects direction automatically)
 ji sync nas
 ```
 
-### Recipients
-
-| Command | Description |
-|---|---|
-| `ji recipient list <INPUT>` | List all recipients of a .ji file |
-| `ji recipient add --key <PUBKEY> <INPUT>` | Add a recipient (requires decryption ability) |
-| `ji recipient remove --key <PUBKEY> <INPUT>` | Remove a recipient |
+### Check the health of your setup
 
 ```bash
-# Desktop packs, laptop wants to decrypt
-ji recipient add --key ~/.ssh/laptop.pub mbp.ji
-# Now both machines can decrypt mbp.ji with their own keys
+ji doctor           # fast: config + keys + manifest
+ji doctor --full    # everything + remote + archives
 ```
 
-### Other
+## Docs
 
-| Command | Description |
+| Document | What it covers |
 |---|---|
-| `ji completion <SHELL>` | Generate shell completion script |
-
-```bash
-ji completion fish > ~/.config/fish/completions/ji.fish
-```
+| [CLI Reference](docs/cli.md) | Every command, every option |
+| [Architecture](docs/architecture.md) | .ji file format, layers, encryption flow |
+| [Troubleshooting](docs/troubleshooting.md) | Doctor-guided diagnosis and fixes |
 
 ## Config
 

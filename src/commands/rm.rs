@@ -30,19 +30,12 @@ pub fn run(paths: Vec<PathBuf>, all: bool) -> Result<()> {
 mod tests {
     use super::*;
 
-    fn set_test_home(path: &std::path::Path) {
-        unsafe { std::env::set_var("JI_TEST_HOME", path.as_os_str()) };
-    }
-
-    fn unset_test_home() {
-        unsafe { std::env::remove_var("JI_TEST_HOME") };
-    }
 
     #[test]
     fn rm_tracked_file() {
         let _guard = crate::store::path::TEST_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
         let tmp = tempfile::tempdir().unwrap();
-        set_test_home(tmp.path());
+        crate::store::path::with_test_home(tmp.path(), || {
 
         // Seed a manifest
         let mut m = Manifest::new();
@@ -56,14 +49,14 @@ mod tests {
         assert!(!manifest.is_tracked(".zshrc"));
         assert!(manifest.is_tracked(".gitconfig"));
 
-        unset_test_home();
+        });
     }
 
     #[test]
     fn rm_all() {
         let _guard = crate::store::path::TEST_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
         let tmp = tempfile::tempdir().unwrap();
-        set_test_home(tmp.path());
+        crate::store::path::with_test_home(tmp.path(), || {
 
         let mut m = Manifest::new();
         m.add(".zshrc", "abc".into());
@@ -75,6 +68,6 @@ mod tests {
         let manifest = Manifest::read(&path::manifest_toml()).unwrap();
         assert!(manifest.files.is_empty());
 
-        unset_test_home();
+        });
     }
 }

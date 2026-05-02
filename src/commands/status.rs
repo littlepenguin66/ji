@@ -56,19 +56,12 @@ pub fn run(short: bool) -> Result<()> {
 mod tests {
     use super::*;
 
-    fn set_test_home(path: &std::path::Path) {
-        unsafe { std::env::set_var("JI_TEST_HOME", path.as_os_str()) };
-    }
-
-    fn unset_test_home() {
-        unsafe { std::env::remove_var("JI_TEST_HOME") };
-    }
 
     #[test]
     fn status_empty_manifest() {
         let _guard = crate::store::path::TEST_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
         let tmp = tempfile::tempdir().unwrap();
-        set_test_home(tmp.path());
+        crate::store::path::with_test_home(tmp.path(), || {
 
         // Empty manifest
         let m = Manifest::new();
@@ -76,14 +69,14 @@ mod tests {
 
         run(false).expect("status");
 
-        unset_test_home();
+        });
     }
 
     #[test]
     fn status_short() {
         let _guard = crate::store::path::TEST_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
         let tmp = tempfile::tempdir().unwrap();
-        set_test_home(tmp.path());
+        crate::store::path::with_test_home(tmp.path(), || {
 
         // Create a file and add it
         let file_path = tmp.path().join(".zshrc");
@@ -96,6 +89,6 @@ mod tests {
 
         run(true).expect("status --short");
 
-        unset_test_home();
+        });
     }
 }

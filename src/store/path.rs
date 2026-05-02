@@ -5,6 +5,23 @@ use std::sync::Mutex;
 #[allow(dead_code)]
 pub static TEST_MUTEX: Mutex<()> = Mutex::new(());
 
+/// Run a closure with `JI_TEST_HOME` set to `dir`, then clean up and restore.
+#[allow(dead_code)]
+pub fn with_test_home(dir: &std::path::Path, f: impl FnOnce()) {
+    unsafe { std::env::set_var("JI_TEST_HOME", dir.as_os_str()) };
+    f();
+    unsafe { std::env::remove_var("JI_TEST_HOME") };
+}
+
+/// Single source for HOME resolution. Respects `JI_TEST_HOME` in tests.
+pub fn home_dir() -> PathBuf {
+    if let Ok(test_home) = std::env::var("JI_TEST_HOME") {
+        PathBuf::from(test_home)
+    } else {
+        dirs::home_dir().expect("could not determine HOME")
+    }
+}
+
 fn base_config_dir() -> PathBuf {
     if let Ok(test_home) = std::env::var("JI_TEST_HOME") {
         PathBuf::from(test_home).join(".config")

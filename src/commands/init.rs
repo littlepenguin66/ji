@@ -78,19 +78,12 @@ fn auto_generate_keypair(recipients: &mut Vec<String>) -> Result<()> {
 mod tests {
     use super::*;
 
-    fn set_test_home(path: &std::path::Path) {
-        unsafe { std::env::set_var("JI_TEST_HOME", path.as_os_str()) };
-    }
-
-    fn unset_test_home() {
-        unsafe { std::env::remove_var("JI_TEST_HOME") };
-    }
 
     #[test]
     fn auto_generate_creates_keypair_and_files() {
         let _guard = crate::store::path::TEST_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
         let tmp = tempfile::tempdir().unwrap();
-        set_test_home(tmp.path());
+        crate::store::path::with_test_home(tmp.path(), || {
 
         let mut recipients = vec![];
         auto_generate_keypair(&mut recipients).expect("generate keypair");
@@ -100,14 +93,14 @@ mod tests {
         assert!(path::identity_path().exists());
         assert!(path::identity_pub_path().exists());
 
-        unset_test_home();
+        });
     }
 
     #[test]
     fn init_writes_config() {
         let _guard = crate::store::path::TEST_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
         let tmp = tempfile::tempdir().unwrap();
-        set_test_home(tmp.path());
+        crate::store::path::with_test_home(tmp.path(), || {
 
         run(vec!["age1testkey123".into()], false, false).expect("init");
 
@@ -116,14 +109,14 @@ mod tests {
         let config = Config::read(&config_path).unwrap();
         assert_eq!(config.encryption.recipients, vec!["age1testkey123"]);
 
-        unset_test_home();
+        });
     }
 
     #[test]
     fn init_skips_if_config_exists() {
         let _guard = crate::store::path::TEST_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
         let tmp = tempfile::tempdir().unwrap();
-        set_test_home(tmp.path());
+        crate::store::path::with_test_home(tmp.path(), || {
 
         run(vec!["age1first".into()], false, false).expect("first init");
         run(vec!["age1second".into()], false, false).expect("second init");
@@ -131,14 +124,14 @@ mod tests {
         let config = Config::read(&path::config_toml()).unwrap();
         assert_eq!(config.encryption.recipients, vec!["age1first"]);
 
-        unset_test_home();
+        });
     }
 
     #[test]
     fn init_force_overwrites_config() {
         let _guard = crate::store::path::TEST_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
         let tmp = tempfile::tempdir().unwrap();
-        set_test_home(tmp.path());
+        crate::store::path::with_test_home(tmp.path(), || {
 
         run(vec!["age1first".into()], false, false).expect("first init");
         run(vec!["age1second".into()], false, true).expect("force init");
@@ -146,6 +139,6 @@ mod tests {
         let config = Config::read(&path::config_toml()).unwrap();
         assert_eq!(config.encryption.recipients, vec!["age1second"]);
 
-        unset_test_home();
+        });
     }
 }

@@ -112,19 +112,12 @@ fn update_cache(manifest: &Manifest) -> Result<()> {
 mod tests {
     use super::*;
 
-    fn set_test_home(path: &std::path::Path) {
-        unsafe { std::env::set_var("JI_TEST_HOME", path.as_os_str()) };
-    }
-
-    fn unset_test_home() {
-        unsafe { std::env::remove_var("JI_TEST_HOME") };
-    }
 
     #[test]
     fn pack_empty_manifest_warns() {
         let _guard = crate::store::path::TEST_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
         let tmp = tempfile::tempdir().unwrap();
-        set_test_home(tmp.path());
+        crate::store::path::with_test_home(tmp.path(), || {
 
         // Create config with recipients
         let cfg = Config::new(vec!["age1test".into()]);
@@ -132,14 +125,14 @@ mod tests {
 
         run(None, false, false).expect("pack empty");
 
-        unset_test_home();
+        });
     }
 
     #[test]
     fn pack_roundtrip() {
         let _guard = crate::store::path::TEST_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
         let tmp = tempfile::tempdir().unwrap();
-        set_test_home(tmp.path());
+        crate::store::path::with_test_home(tmp.path(), || {
 
         // Generate real age keypair
         let (priv_key, pub_key) = crate::crypto::age::AgeCipher::generate_identity();
@@ -185,6 +178,6 @@ mod tests {
 
         // Reset test home
         unsafe { std::env::set_var("JI_TEST_HOME", tmp.path().as_os_str()) };
-        unset_test_home();
+        });
     }
 }
