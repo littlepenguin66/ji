@@ -15,24 +15,16 @@ pub fn home_dir() -> PathBuf {
     if let Ok(test_home) = std::env::var("JI_TEST_HOME") {
         PathBuf::from(test_home)
     } else {
-        dirs::home_dir().expect("could not determine HOME")
+        std::env::var("HOME").map(PathBuf::from).expect("HOME not set")
     }
 }
 
 fn base_config_dir() -> PathBuf {
-    if let Ok(test_home) = std::env::var("JI_TEST_HOME") {
-        PathBuf::from(test_home).join(".config")
-    } else {
-        dirs::config_dir().expect("could not determine XDG config directory")
-    }
+    home_dir().join(".config")
 }
 
 fn base_data_dir() -> PathBuf {
-    if let Ok(test_home) = std::env::var("JI_TEST_HOME") {
-        PathBuf::from(test_home).join(".local").join("share")
-    } else {
-        dirs::data_local_dir().expect("could not determine XDG data directory")
-    }
+    home_dir().join(".local").join("share")
 }
 
 pub fn config_dir() -> PathBuf {

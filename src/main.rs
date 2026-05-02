@@ -11,7 +11,7 @@ use std::path::PathBuf;
 #[derive(Parser)]
 #[command(
     name = "ji",
-    about = "笈 — dotfiles management tool",
+    about = "ji(笈) — dotfiles management tool",
     long_about = "Package encrypted dotfiles into a single .ji file for safe cross-device migration.",
     version
 )]
