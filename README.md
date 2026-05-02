@@ -24,11 +24,21 @@ Think of it as a lightweight chezmoi: source files → encrypted archive → sin
 - **Unix philosophy** — each command does one thing, `--json` for scripting
 - **Shell completions** — bash / zsh / fish with dynamic argument completion
 
-## Quick Start
+## Install
 
 ```bash
-cargo install --path .
+cargo install ji          # from crates.io
 ```
+
+Or build from source:
+
+```bash
+git clone https://github.com/your/ji.git && cd ji && cargo install --path .
+```
+
+Pre-built binaries and Homebrew tap coming soon.
+
+## Quick Start
 
 ### Set up a new machine
 
@@ -36,10 +46,14 @@ cargo install --path .
 ji init                         # generates age keypair, creates config
 ji add .zshrc .gitconfig .config/nvim/
 ji add **/* --exclude "*.zwc"   # bulk add with filters
-ji list                         # see what's tracked
+ji list                         # see what's tracked (the "manifest")
 ji status                       # check for uncommitted changes
-ji pack                         # → ~/.local/share/ji/mbp.ji
+ji pack                         # → ~/.local/share/ji/<hostname>.ji
 ```
+
+`ji list` shows the manifest — the set of files ji tracks. `ji pack` names the output after your hostname (`uname -n`), so each machine naturally produces a different `.ji` file.
+
+### Restore on another machine
 
 ### Restore on another machine
 
@@ -52,13 +66,16 @@ ji status                       # verify
 
 ### Work across multiple devices
 
+Pack once, then add each device's key so any machine can decrypt:
+
 ```bash
-ji recipient add --key ~/.ssh/laptop.pub mbp.ji
-ji recipient add --key ~/.ssh/desktop.pub mbp.ji
-ji recipient list mbp.ji
+ji pack                         # on desktop
+ji recipient add --key ~/.ssh/laptop.pub desktop.ji
+ji recipient add --key ~/.ssh/server.pub desktop.ji
+ji recipient list desktop.ji   # verify all keys
 ```
 
-Each device uses its own SSH key. Any one can decrypt the same `.ji` file.
+You must hold at least one existing private key to add or remove recipients. Each device uses its own SSH key — no shared secrets.
 
 ### Sync via WebDAV
 
@@ -127,7 +144,7 @@ cargo build --features ssh    # + SSH remote transport
 
 **Windows support?** V1 targets macOS and Linux only.
 
-**How do I switch machines?** `ji pack` on the old machine → transfer the `.ji` file → `ji init --key <new key>` → `ji unpack`. If you're the same person, add the new machine's key as a recipient first: `ji recipient add --key ~/.ssh/new.pub old.ji`.
+**How do I switch machines?** See the cookbook above: pack on the old machine, transfer the `.ji` file, init on the new machine with your SSH key, then unpack. If you use multiple devices regularly, add each one's key as a recipient so any device can decrypt the same `.ji` file.
 
 ## License
 

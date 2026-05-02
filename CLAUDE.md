@@ -7,6 +7,7 @@ This file is the **map** for AI agents working on this project — keep it short
 ji is a dotfiles management tool. It encrypts config files into a single `.ji` file for safe cross-device migration. Think lightweight chezmoi: source files → encrypted archive → single-file transfer. No Git, no symlinks.
 
 - [README](README.md) — user-facing docs
+- [Security](SECURITY.md) — threat model and vulnerability reporting
 
 ## 2. Architecture Contract
 
@@ -92,6 +93,7 @@ New cipher or remote backends go behind feature flags.
 | Need | Go to |
 |---|---|
 | User-facing docs | `README.md` |
+| Security policy | `SECURITY.md` |
 | CLI reference | `docs/cli.md` |
 | Architecture | `docs/architecture.md` |
 | Troubleshooting | `docs/troubleshooting.md` |

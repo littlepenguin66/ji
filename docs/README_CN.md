@@ -23,11 +23,21 @@
 - **Unix 哲学** — 每个命令做一件事，`--json` 输出可被脚本消费
 - **Shell 补全** — bash / zsh / fish，动态补全
 
-## Quick Start
+## Install
 
 ```bash
-cargo install --path .
+cargo install ji          # 从 crates.io 安装
 ```
+
+或者从源码构建：
+
+```bash
+git clone https://github.com/your/ji.git && cd ji && cargo install --path .
+```
+
+预编译二进制和 Homebrew tap 即将推出。
+
+## Quick Start
 
 ### 在新机器上设置
 
@@ -35,10 +45,14 @@ cargo install --path .
 ji init                         # 生成 age keypair，创建 config
 ji add .zshrc .gitconfig .config/nvim/
 ji add **/* --exclude "*.zwc"   # 批量添加，支持过滤
-ji list                         # 查看跟踪的文件
+ji list                         # 查看跟踪的文件列表（即 manifest）
 ji status                       # 检查是否有未打包的变更
-ji pack                         # → ~/.local/share/ji/mbp.ji
+ji pack                         # → ~/.local/share/ji/<hostname>.ji
 ```
+
+`ji list` 显示 manifest——即笈跟踪的文件集合。`ji pack` 以主机名（`uname -n`）命名输出文件，每台设备自然生成不同的 `.ji`。
+
+### 在另一台机器上恢复
 
 ### 在另一台机器上恢复
 
@@ -51,13 +65,16 @@ ji status                       # 确认一切正常
 
 ### 多设备共用
 
+打包一次，然后添加每台设备的 key，任意设备都能解密：
+
 ```bash
-ji recipient add --key ~/.ssh/laptop.pub mbp.ji
-ji recipient add --key ~/.ssh/desktop.pub mbp.ji
-ji recipient list mbp.ji
+ji pack                         # 在台式机上
+ji recipient add --key ~/.ssh/laptop.pub desktop.ji
+ji recipient add --key ~/.ssh/server.pub desktop.ji
+ji recipient list desktop.ji   # 确认所有 key 已加入
 ```
 
-每台设备用自己的 SSH key，任何一个都能解密同一份 `.ji` 文件。
+添加或移除 recipient 需要至少持有一把已有私钥。每台设备用自己的 SSH key——无需共享密钥。
 
 ### 通过 WebDAV 同步
 
@@ -126,7 +143,7 @@ cargo build --features ssh    # + SSH 远程传输
 
 **支持 Windows 吗？** V1 仅支持 macOS 和 Linux。
 
-**怎么换设备？** 旧机器上 `ji pack` → 传输 `.ji` 文件 → 新机器上 `ji init --key <新 key>` → `ji unpack`。如果是同一人，先 `ji recipient add --key ~/.ssh/new.pub old.ji` 把新 key 加进去再传。
+**怎么换设备？** 参考上面的 cookbook：旧机器 pack → 传输 .ji 文件 → 新机器 init 并 unpack。如果多设备共用，把每台设备的 key 都加为 recipient，任意设备都能解密同一份 .ji。
 
 ## License
 
