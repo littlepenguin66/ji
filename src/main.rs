@@ -13,7 +13,11 @@ use std::path::PathBuf;
     name = "ji",
     about = "ji(笈) — dotfiles management tool",
     long_about = "Package encrypted dotfiles into a single .ji file for safe cross-device migration.",
-    version
+    version,
+    long_version = concat!(
+        env!("CARGO_PKG_VERSION"),
+        "\nhttps://github.com/littlepenguin66/ji",
+    ),
 )]
 struct Cli {
     #[command(subcommand)]
