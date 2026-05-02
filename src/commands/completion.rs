@@ -182,6 +182,7 @@ complete -c ji -n "__fish_seen_subcommand_from push" -F -g '*.ji'
 complete -c ji -n "__fish_seen_subcommand_from pull" -a "(__ji_list_remotes)"
 complete -c ji -n "__fish_seen_subcommand_from sync" -a "(__ji_list_remotes)"
 complete -c ji -n "__fish_seen_subcommand_from remote; and __fish_seen_subcommand_from remove; or __fish_seen_subcommand_from test; or __fish_seen_subcommand_from files; or __fish_seen_subcommand_from delete" -a "(__ji_list_remotes)"
+complete -c ji -n "__fish_seen_subcommand_from list" -s v -l verbose -d "Show sizes and checksums"
 complete -c ji -n "__fish_seen_subcommand_from unpack; or __fish_seen_subcommand_from check" -F -g '*.ji'
 complete -c ji -n "__fish_seen_subcommand_from recipient; and __fish_seen_subcommand_from list; or __fish_seen_subcommand_from add; or __fish_seen_subcommand_from remove" -F -g '*.ji'
 "#,
