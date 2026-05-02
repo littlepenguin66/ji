@@ -26,7 +26,7 @@ fn print_bash() {
 
     case "${{words[1]}}" in
         rm)
-            COMPREPLY=($(compgen -W "$(ji list --json 2>/dev/null | jq -r '.files | keys[]' 2>/dev/null)" -- "$cur"))
+            COMPREPLY=($(compgen -W "$(ji list --json 2>/dev/null | jq -r 'keys[]' 2>/dev/null)" -- "$cur"))
             ;;
         remote)
             case "${{words[2]}}" in
@@ -131,7 +131,7 @@ _ji() {{
                     ;;
                 rm)
                     local -a files
-                    files=(${{(f)"$(ji list --json 2>/dev/null | jq -r '.files | keys[]' 2>/dev/null)"}})
+                    files=(${{(f)"$(ji list --json 2>/dev/null | jq -r 'keys[]' 2>/dev/null)"}})
                     _values 'files' $files
                     ;;
                 push)
@@ -164,7 +164,7 @@ _ji
 fn print_fish() {
     print!(
         r#"function __ji_list_files
-    ji list --json 2>/dev/null | jq -r '.files | keys[]' 2>/dev/null
+    ji list --json 2>/dev/null | jq -r 'keys[]' 2>/dev/null
 end
 
 function __ji_list_remotes
