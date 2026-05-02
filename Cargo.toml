@@ -1,5 +1,5 @@
 [package]
-name = "ji"
+name = "ji-cli"
 version = "26.5.1"
 edition = "2024"
 authors = ["ltpenguin <littlepenguinzq@gmail.com>"]
