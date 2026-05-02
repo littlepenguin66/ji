@@ -64,7 +64,11 @@ impl Cipher for AgeCipher {
             .lines()
             .skip(1)
             .take_while(|line| !line.starts_with("---"))
-            .filter(|line| line.starts_with("-> X25519 "))
+            .filter(|line| {
+                line.starts_with("-> X25519 ")
+                    || line.starts_with("-> ssh-rsa ")
+                    || line.starts_with("-> ssh-ed25519 ")
+            })
             .map(|line| line[3..].trim().to_string())
             .collect();
         Ok(recipients)

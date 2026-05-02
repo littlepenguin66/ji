@@ -256,9 +256,8 @@ enum RemoteCommand {
 enum RecipientCommand {
     /// List recipients of a .ji file
     List {
-        /// The .ji file to inspect
         #[arg(value_name = "INPUT.ji")]
-        input: PathBuf,
+        input: Option<PathBuf>,
     },
 
     /// Add a recipient to a .ji file

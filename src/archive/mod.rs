@@ -492,7 +492,7 @@ pub fn add_archive_recipient(input: &Path, key: &str) -> Result<()> {
 
     let mut new_recipients: Vec<String> = existing
         .into_iter()
-        .filter(|r| r.starts_with("X25519 "))
+        .filter(|r| r.starts_with("X25519 ") || r.starts_with("ssh-rsa ") || r.starts_with("ssh-ed25519 "))
         .collect();
     new_recipients.push(key.to_string());
 
