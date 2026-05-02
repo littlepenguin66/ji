@@ -39,7 +39,7 @@ cargo install ji
 ### 从源码构建
 
 ```bash
-git clone https://github.com/your/ji.git
+git clone https://github.com/littlepenguin66/ji.git
 cd ji
 cargo install --path .
 ```
