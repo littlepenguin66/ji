@@ -20,7 +20,6 @@ pub fn run_add(name: String, remote_type: String, url: String, user: Option<Stri
     });
 
     config.write(&config_path)?;
-    println!("Added remote '{name}' ({remote_type}: {url})");
     Ok(())
 }
 
@@ -35,9 +34,7 @@ pub fn run_remove(name: String) -> Result<()> {
         .ok_or_else(|| crate::error::Error::Remote(format!("remote '{name}' not found")))?;
 
     config.remote.remove(idx);
-    config.write(&config_path)?;
-    println!("Removed remote '{name}'");
-    Ok(())
+    config.write(&config_path)
 }
 
 pub fn run_list(json: bool) -> Result<()> {

@@ -16,13 +16,9 @@ pub fn run_list(input: PathBuf) -> Result<()> {
 }
 
 pub fn run_add(key: String, input: PathBuf) -> Result<()> {
-    crate::archive::add_archive_recipient(&input, &key)?;
-    println!("Recipient added.");
-    Ok(())
+    crate::archive::add_archive_recipient(&input, &key)
 }
 
 pub fn run_remove(key: String, input: PathBuf) -> Result<()> {
-    crate::archive::remove_archive_recipient(&input, &key)?;
-    println!("Recipient removed.");
-    Ok(())
+    crate::archive::remove_archive_recipient(&input, &key)
 }

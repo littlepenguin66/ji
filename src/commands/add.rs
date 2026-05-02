@@ -30,11 +30,6 @@ pub fn run(paths: Vec<PathBuf>, include: Vec<String>, exclude: Vec<String>) -> R
     }
 
     manifest.write(&manifest_path)?;
-
-    for p in manifest.list_paths() {
-        println!("{}", p);
-    }
-
     Ok(())
 }
 
@@ -54,7 +49,6 @@ fn add_file(
 
     let checksum = manifest::compute_checksum(abs)?;
     manifest.add(rel, checksum);
-    println!("added: {rel}");
     Ok(())
 }
 

@@ -29,8 +29,6 @@ pub fn run(keys: Vec<String>, auto: bool, force: bool) -> Result<()> {
     let config = Config::new(recipients);
     config.write(&config_path)?;
 
-    println!("Config written to {}", config_path.display());
-    println!();
     println!("Next: ji add your dotfiles, then ji pack");
 
     Ok(())
@@ -56,11 +54,9 @@ fn auto_generate_keypair(recipients: &mut Vec<String>) -> Result<()> {
     }
 
     std::fs::rename(&tmp, &identity_path).map_err(|e| crate::error::Error::Io(e))?;
-    println!("Private key saved to {}", identity_path.display());
 
     std::fs::write(&identity_pub_path, format!("{}\n", pub_key))
         .map_err(|e| crate::error::Error::Io(e))?;
-    println!("Public key saved to {}", identity_pub_path.display());
 
     recipients.push(pub_key);
 

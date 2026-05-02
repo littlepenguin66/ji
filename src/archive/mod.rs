@@ -259,16 +259,13 @@ fn extract_tar(
                 let mut input = String::new();
                 std::io::stdin().read_line(&mut input).ok();
                 if !input.trim().eq_ignore_ascii_case("y") {
-                    println!("skipped: {rel_path}");
                     continue;
                 }
             } else if backup {
                 let backup_path = dest.with_extension("bak");
                 std::fs::rename(&dest, &backup_path)
                     .map_err(|e| Error::Archive(format!("backup {rel_path}: {e}")))?;
-                println!("backed up: {rel_path} -> {rel_path}.bak");
             } else if !force {
-                println!("skipped: {rel_path} (exists)");
                 continue;
             }
         }
@@ -309,7 +306,6 @@ fn extract_tar(
 
         std::fs::rename(&tmp, &dest)
             .map_err(|e| Error::Archive(format!("rename {rel_path}: {e}")))?;
-        println!("restored: {rel_path}");
         restored += 1;
     }
 

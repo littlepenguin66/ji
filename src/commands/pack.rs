@@ -67,8 +67,6 @@ pub fn run(output: Option<PathBuf>, strict: bool, verbose: bool) -> Result<()> {
         cipher,
     )?;
 
-    println!("Packed to {}", output_path.display());
-
     update_cache(&manifest).ok();
 
     Ok(())

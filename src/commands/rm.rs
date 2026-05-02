@@ -10,16 +10,11 @@ pub fn run(paths: Vec<PathBuf>, all: bool) -> Result<()> {
     if all {
         manifest.remove_all();
         manifest.write(&manifest_path)?;
-        println!("Removed all tracked files.");
         return Ok(());
     }
 
     for raw_path in &paths {
-        let rel = raw_path.to_string_lossy().to_string();
-        match manifest.remove(&rel) {
-            Ok(()) => println!("removed: {rel}"),
-            Err(e) => eprintln!("ji: {e}"),
-        }
+        manifest.remove(&raw_path.to_string_lossy())?;
     }
 
     manifest.write(&manifest_path)?;
