@@ -20,8 +20,9 @@ impl WebdavRemote {
             .user
             .clone()
             .ok_or_else(|| Error::Remote("no user configured".into()))?;
-        let password = rpassword::prompt_password(&format!("Password for {user}@{url}: ", url = self.url))
-            .map_err(|e| Error::Remote(format!("password: {e}")))?;
+        let password =
+            rpassword::prompt_password(format!("Password for {user}@{url}: ", url = self.url))
+                .map_err(|e| Error::Remote(format!("password: {e}")))?;
         Ok((user, Some(password)))
     }
 

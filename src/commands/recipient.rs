@@ -1,8 +1,12 @@
 use crate::error::Result;
 use std::path::PathBuf;
 
-pub fn run_list(input: PathBuf) -> Result<()> {
-    let recipients = crate::archive::list_archive_recipients(&input)?;
+pub fn run_list(input: Option<PathBuf>) -> Result<()> {
+    let target = match input {
+        Some(p) => p,
+        None => crate::store::path::discover_ji()?,
+    };
+    let recipients = crate::archive::list_archive_recipients(&target)?;
 
     if recipients.is_empty() {
         println!("(no recipients found)");

@@ -13,9 +13,13 @@ use std::path::PathBuf;
     name = "ji",
     about = "ji(笈) — dotfiles management tool",
     long_about = "Package encrypted dotfiles into a single .ji file for safe cross-device migration.",
-    version
+    version,
+    long_version = concat!(
+        env!("CARGO_PKG_VERSION"),
+        "\nhttps://github.com/littlepenguin66/ji",
+    ),
 )]
-struct Cli {
+pub struct Cli {
     #[command(subcommand)]
     command: Command,
 }
@@ -55,7 +59,7 @@ enum Command {
     /// Remove files from the manifest
     Rm {
         /// Paths to untrack
-        #[arg(required = true, value_name = "PATH")]
+        #[arg(value_name = "PATH")]
         paths: Vec<PathBuf>,
 
         /// Remove all tracked files
@@ -68,6 +72,10 @@ enum Command {
         /// Output in JSON format
         #[arg(long = "json")]
         json: bool,
+
+        /// Show file sizes and checksums
+        #[arg(short = 'v', long = "verbose")]
+        verbose: bool,
     },
 
     /// Show file change status
@@ -117,11 +125,9 @@ enum Command {
 
     /// Verify .ji file integrity
     Check {
-        /// The .ji file to verify
         #[arg(value_name = "INPUT.ji")]
-        input: PathBuf,
+        input: Option<PathBuf>,
 
-        /// Full verification including decryption and file checksums
         #[arg(long = "deep")]
         deep: bool,
     },
@@ -250,9 +256,8 @@ enum RemoteCommand {
 enum RecipientCommand {
     /// List recipients of a .ji file
     List {
-        /// The .ji file to inspect
         #[arg(value_name = "INPUT.ji")]
-        input: PathBuf,
+        input: Option<PathBuf>,
     },
 
     /// Add a recipient to a .ji file
@@ -304,7 +309,7 @@ fn run(cli: Cli) -> error::Result<()> {
             exclude,
         } => commands::add::run(paths, include, exclude),
         Rm { paths, all } => commands::rm::run(paths, all),
-        List { json } => commands::list::run(json),
+        List { json, verbose } => commands::list::run(json, verbose),
         Status { short } => commands::status::run(short),
         Pack {
             output,

@@ -1,4 +1,3 @@
-
 #![allow(dead_code)]
 
 use crate::error::{Error, Result};
@@ -24,8 +23,7 @@ impl SshRemote {
 impl Remote for SshRemote {
     #[cfg(feature = "ssh")]
     fn push(&self, local: &Path, name: &str) -> Result<()> {
-        let data = std::fs::read(local)
-            .map_err(|e| Error::Remote(format!("read: {e}")))?;
+        let data = std::fs::read(local).map_err(|e| Error::Remote(format!("read: {e}")))?;
         let remote_path = format!("{}/{}", self.path.trim_end_matches('/'), name);
 
         let status = std::process::Command::new("ssh")
@@ -43,7 +41,9 @@ impl Remote for SshRemote {
                 if let Some(ref mut stdin) = child.stdin {
                     stdin.write_all(&data).ok();
                 }
-                child.wait().map_err(|e| Error::Remote(format!("ssh wait: {e}")))
+                child
+                    .wait()
+                    .map_err(|e| Error::Remote(format!("ssh wait: {e}")))
             })?;
 
         if !status.success() {
@@ -81,10 +81,8 @@ impl Remote for SshRemote {
         }
 
         let tmp = local.with_extension("ji_tmp");
-        std::fs::write(&tmp, &output.stdout)
-            .map_err(|e| Error::Remote(format!("write: {e}")))?;
-        std::fs::rename(&tmp, local)
-            .map_err(|e| Error::Remote(format!("rename: {e}")))?;
+        std::fs::write(&tmp, &output.stdout).map_err(|e| Error::Remote(format!("write: {e}")))?;
+        std::fs::rename(&tmp, local).map_err(|e| Error::Remote(format!("rename: {e}")))?;
 
         println!("Pulled {name} from {}", self.user_host());
         Ok(())
@@ -100,9 +98,7 @@ impl Remote for SshRemote {
     #[cfg(feature = "ssh")]
     fn list(&self) -> Result<Vec<RemoteEntry>> {
         let remote_path = self.path.trim_end_matches('/');
-        let script = format!(
-            "for f in {remote_path}/*; do [ -f \"$f\" ] && basename \"$f\"; done"
-        );
+        let script = format!("for f in {remote_path}/*; do [ -f \"$f\" ] && basename \"$f\"; done");
 
         let output = std::process::Command::new("ssh")
             .arg("-o")
@@ -134,7 +130,9 @@ impl Remote for SshRemote {
 
     #[cfg(not(feature = "ssh"))]
     fn list(&self) -> Result<Vec<RemoteEntry>> {
-        Err(Error::Remote("SSH support not compiled. Rebuild with --features ssh".into()))
+        Err(Error::Remote(
+            "SSH support not compiled. Rebuild with --features ssh".into(),
+        ))
     }
 
     #[cfg(feature = "ssh")]
@@ -158,7 +156,9 @@ impl Remote for SshRemote {
 
     #[cfg(not(feature = "ssh"))]
     fn delete(&self, _name: &str) -> Result<()> {
-        Err(Error::Remote("SSH support not compiled. Rebuild with --features ssh".into()))
+        Err(Error::Remote(
+            "SSH support not compiled. Rebuild with --features ssh".into(),
+        ))
     }
 
     #[cfg(feature = "ssh")]

@@ -15,7 +15,9 @@ pub fn home_dir() -> PathBuf {
     if let Ok(test_home) = std::env::var("JI_TEST_HOME") {
         PathBuf::from(test_home)
     } else {
-        std::env::var("HOME").map(PathBuf::from).expect("HOME not set")
+        std::env::var("HOME")
+            .map(PathBuf::from)
+            .expect("HOME not set")
     }
 }
 
@@ -61,6 +63,25 @@ pub fn cache_dir() -> PathBuf {
 
 pub fn default_output(hostname: &str) -> PathBuf {
     data_dir().join(format!("{}.ji", hostname))
+}
+
+pub fn discover_ji() -> crate::error::Result<PathBuf> {
+    let dir = data_dir();
+    let mut candidates: Vec<_> = std::fs::read_dir(&dir)
+        .map_err(|_| {
+            crate::error::Error::Archive(format!("no .ji files found in {}", dir.display()))
+        })?
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "ji"))
+        .filter_map(|e| {
+            let meta = e.metadata().ok()?;
+            Some((e.path(), meta.modified().ok()?))
+        })
+        .collect();
+    candidates.sort_by(|a, b| b.1.cmp(&a.1));
+    candidates.first().map(|(p, _)| p.clone()).ok_or_else(|| {
+        crate::error::Error::Archive(format!("no .ji files found in {}", dir.display()))
+    })
 }
 
 #[cfg(test)]

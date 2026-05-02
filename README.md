@@ -26,7 +26,7 @@ Open the case, and you're home.
 - **Optional PGP** — `--features pgp` enables sequoia-pgp backend for GnuPG users
 - **Integrity verification** — HMAC-SHA256 on the file index, SHA-256 per-file checksums
 - **Atomic writes** — tmp → fsync → rename everywhere, Ctrl+C leaves nothing broken
-- **Unix philosophy** — each command does one thing, `--json` for scripting, silent on success
+- **Unix philosophy** — each command does one thing, `--json` for scripting, concise output
 - **Shell completions** — bash / zsh / fish with dynamic argument completion
 
 ## Installation

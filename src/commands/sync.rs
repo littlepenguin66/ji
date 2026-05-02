@@ -9,9 +9,7 @@ pub fn run(remote_name: String) -> Result<()> {
         .remote
         .iter()
         .find(|r| r.name == remote_name)
-        .ok_or_else(|| {
-            crate::error::Error::Remote(format!("remote '{remote_name}' not found"))
-        })?;
+        .ok_or_else(|| crate::error::Error::Remote(format!("remote '{remote_name}' not found")))?;
 
     let manifest = Manifest::read(&path::manifest_toml())?;
 

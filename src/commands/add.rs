@@ -1,7 +1,7 @@
 use crate::error::Result;
 use crate::store::manifest::{self, Manifest};
 use crate::store::path;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 pub fn run(paths: Vec<PathBuf>, include: Vec<String>, exclude: Vec<String>) -> Result<()> {
     let manifest_path = path::manifest_toml();
@@ -13,10 +13,6 @@ pub fn run(paths: Vec<PathBuf>, include: Vec<String>, exclude: Vec<String>) -> R
         } else {
             raw_path.to_string_lossy().to_string()
         };
-
-        if manifest.is_tracked(&rel) {
-            return Err(crate::error::Error::AlreadyTracked(PathBuf::from(&rel)));
-        }
 
         let abs = manifest::resolve_home(&rel);
 
@@ -35,7 +31,7 @@ pub fn run(paths: Vec<PathBuf>, include: Vec<String>, exclude: Vec<String>) -> R
 
 fn add_file(
     manifest: &mut Manifest,
-    abs: &PathBuf,
+    abs: &Path,
     rel: &str,
     include: &[String],
     exclude: &[String],
@@ -48,6 +44,13 @@ fn add_file(
     }
 
     let checksum = manifest::compute_checksum(abs)?;
+    if manifest.is_tracked(rel) {
+        let old = &manifest.get(rel).unwrap().checksum;
+        if *old == checksum {
+            return Ok(());
+        }
+        eprintln!("ji: updating checksum for '{rel}'");
+    }
     manifest.add(rel, checksum);
     Ok(())
 }
@@ -77,7 +80,13 @@ fn add_directory(
             .to_string_lossy()
             .to_string();
 
-        add_file(manifest, &entry_abs.to_path_buf(), &entry_rel, include, exclude)?;
+        add_file(
+            manifest,
+            &entry_abs.to_path_buf(),
+            &entry_rel,
+            include,
+            exclude,
+        )?;
     }
     Ok(())
 }
@@ -112,35 +121,34 @@ fn should_include(rel: &str, include: &[String], exclude: &[String]) -> bool {
 mod tests {
     use super::*;
 
-
     #[test]
     fn add_single_file() {
-        let _guard = crate::store::path::TEST_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
+        let _guard = crate::store::path::TEST_MUTEX
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let tmp = tempfile::tempdir().unwrap();
         crate::store::path::with_test_home(tmp.path(), || {
+            let file_path = tmp.path().join(".zshrc");
+            std::fs::write(&file_path, "export EDITOR=nvim").unwrap();
 
-        let file_path = tmp.path().join(".zshrc");
-        std::fs::write(&file_path, "export EDITOR=nvim").unwrap();
+            run(vec![PathBuf::from(".zshrc")], vec![], vec![]).expect("add");
 
-        run(vec![PathBuf::from(".zshrc")], vec![], vec![]).expect("add");
-
-        let manifest = Manifest::read(&path::manifest_toml()).unwrap();
-        assert!(manifest.is_tracked(".zshrc"));
-
+            let manifest = Manifest::read(&path::manifest_toml()).unwrap();
+            assert!(manifest.is_tracked(".zshrc"));
         });
     }
 
     #[test]
     fn add_nonexistent_warns() {
-        let _guard = crate::store::path::TEST_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
+        let _guard = crate::store::path::TEST_MUTEX
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let tmp = tempfile::tempdir().unwrap();
         crate::store::path::with_test_home(tmp.path(), || {
+            run(vec![PathBuf::from(".nonexistent")], vec![], vec![]).expect("add");
 
-        run(vec![PathBuf::from(".nonexistent")], vec![], vec![]).expect("add");
-
-        let manifest = Manifest::read(&path::manifest_toml()).unwrap();
-        assert!(manifest.files.is_empty());
-
+            let manifest = Manifest::read(&path::manifest_toml()).unwrap();
+            assert!(manifest.files.is_empty());
         });
     }
 }

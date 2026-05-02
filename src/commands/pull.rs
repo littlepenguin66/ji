@@ -10,7 +10,7 @@ pub fn run(name: String) -> Result<()> {
         .find(|r| r.name == name)
         .ok_or_else(|| crate::error::Error::Remote(format!("remote '{name}' not found")))?;
 
-    std::fs::create_dir_all(path::data_dir()).map_err(|e| crate::error::Error::Io(e))?;
+    std::fs::create_dir_all(path::data_dir()).map_err(crate::error::Error::Io)?;
     let host = hostname::get()
         .map(|h| h.to_string_lossy().to_string())
         .unwrap_or_else(|_| "default".into());
